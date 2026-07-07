@@ -573,11 +573,12 @@ body::after {
 .particle {
   position: fixed; pointer-events: none; z-index: 200;
   border-radius: 2px;
-  animation: particle-fly 0.5s ease-out forwards;
+  transform: translate(0,0) scale(1); opacity: 1;
+  transition: transform 0.45s ease-out, opacity 0.45s ease-out;
 }
-@keyframes particle-fly {
-  0%   { transform: translate(0,0) scale(1); opacity: 1; }
-  100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+.particle.fly {
+  transform: translate(var(--dx), var(--dy)) scale(0);
+  opacity: 0;
 }
 
 /* ---- Insertion slot — 琥珀色光晕hover ---- */
@@ -2217,7 +2218,12 @@ function burstParticles(ballEl) {
       box-shadow:0 0 6px ${color};
     `;
     document.body.appendChild(p);
-    p.addEventListener('animationend', () => p.remove());
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        p.classList.add('fly');
+      });
+    });
+    p.addEventListener('transitionend', () => p.remove());
   }
 }
 
