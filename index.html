@@ -445,6 +445,17 @@ body::after {
 .guided-result .gr-stat .gr-val { font-size: 22px; font-weight: 700; }
 .guided-result .gr-stat .gr-label { font-size: 9px; color: var(--muted); }
 
+/* ---- CTA card (end of tutorial) ---- */
+.cta-card {
+  text-align: center; padding: 20px 16px;
+  background: linear-gradient(135deg, rgba(255,179,71,0.08) 0%, rgba(255,208,96,0.04) 100%);
+  border: 1px solid rgba(255,179,71,0.2);
+  border-radius: 14px;
+}
+.cta-card .cta-icon { font-size: 48px; margin-bottom: 8px; }
+.cta-card .cta-title { font-size: 17px; font-weight: 700; color: var(--amber); margin-bottom: 6px; }
+.cta-card .cta-desc { font-size: 12px; color: var(--gold-dark); line-height: 1.6; margin-bottom: 14px; }
+
 /* ================================================================== */
 /* PAGE 2: LEVELS                                                      */
 /* ================================================================== */
@@ -1099,6 +1110,7 @@ const TUTORIAL_SCRIPTS = [
           '<strong>六级连锁</strong>：1次引爆 → 6次消除 → 18球全清！球越多、连锁越壮观！'
         ],
         tip: '无论球链多长，核心穿插法+潜伏对布局 = 一击必杀！' },
+      { type:'cta', title:'🎉 你已经准备好了！', text:'从三消入门到六级多米诺，<br>核心穿插法已经在你手中。<br>现在去闯关，征服所有挑战！' },
       { type:'end' },
     ]
   }
@@ -1197,9 +1209,11 @@ function createTutorialPlayer() {
           break;
         case 'summary':
           this._renderAll();
-          // Show summary card in the desc area
           if (this.onStepChange) this.onStepChange(this.stepIdx, step);
           this._setTimer(() => { this.stepIdx++; this._runStep(); }, 6000);
+          break;
+        case 'cta':
+          if (this.onStepChange) this.onStepChange(this.stepIdx, step);
           break;
         case 'end':
           this.stop();
@@ -1527,7 +1541,22 @@ function startTutorialPlayback(tutId) {
     }
     const descEl = document.getElementById('tutDesc');
     if (!descEl) return;
-    if (step.type === 'summary') {
+    if (step.type === 'cta') {
+      descEl.innerHTML = `
+        <div class="cta-card">
+          <div class="cta-icon">🏆</div>
+          <div class="cta-title">${step.title || '准备就绪！'}</div>
+          <div class="cta-desc">${step.text || '你已经掌握了核心穿插法，<br>现在去闯关实战吧！'}</div>
+          <button class="btn btn-accent" onclick="router.navigate('#levels')" style="width:100%;justify-content:center;padding:12px;font-size:14px;">🎮 开始闯关 →</button>
+        </div>`;
+      descEl.style.opacity = '1';
+      // Hide next ball and bottom skip during CTA
+      document.getElementById('tutNextBall').style.display = 'none';
+      const bottom = document.querySelector('#page-guide .play-bottom');
+      if (bottom) bottom.innerHTML = '';
+      const skipBtn = document.getElementById('btnTutSkip');
+      if (skipBtn) { skipBtn.textContent = '完成'; skipBtn.onclick = () => router.navigate('#levels'); }
+    } else if (step.type === 'summary') {
       const pointsHTML = step.points.map(p => `<li style="margin-bottom:6px;">${p}</li>`).join('');
       descEl.innerHTML = `
         <div style="text-align:left;line-height:1.6;">
