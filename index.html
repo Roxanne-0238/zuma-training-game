@@ -569,6 +569,16 @@ body::after {
   pointer-events: none;
 }
 .ball.removing { transform: scale(0); opacity: 0; }
+/* ---- Particle burst ---- */
+.particle {
+  position: fixed; pointer-events: none; z-index: 200;
+  border-radius: 2px;
+  animation: particle-fly 0.5s ease-out forwards;
+}
+@keyframes particle-fly {
+  0%   { transform: translate(0,0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+}
 
 /* ---- Insertion slot — 琥珀色光晕hover ---- */
 .insert-slot {
@@ -1222,7 +1232,10 @@ function createTutorialPlayer() {
       if (row) {
         for (let i = match.left; i <= match.right; i++) {
           const ball = row.querySelector('.ball[data-index="' + i + '"]');
-          if (ball) ball.classList.add('removing');
+          if (ball) {
+            burstParticles(ball);
+            ball.classList.add('removing');
+          }
         }
       }
 
@@ -1693,7 +1706,10 @@ function guidedScheduleMatchCheck(checkIdx) {
   if (row) {
     for (let i = match.left; i <= match.right; i++) {
       const ball = row.querySelector('.ball[data-index="' + i + '"]');
-      if (ball) ball.classList.add('removing');
+      if (ball) {
+        burstParticles(ball);
+        ball.classList.add('removing');
+      }
     }
   }
 
@@ -2180,11 +2196,39 @@ function scheduleMatchCheck(checkIdx) {
   });
 }
 
+function burstParticles(ballEl) {
+  if (!ballEl) return;
+  const rect = ballEl.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const color = ballEl.style.backgroundColor || ballEl.style.getPropertyValue('--ball-color') || '#fff';
+  const count = 8;
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+    const dist = 18 + Math.random() * 22;
+    p.style.cssText = `
+      left:${cx}px; top:${cy}px;
+      width:5px; height:5px;
+      background:${color};
+      --dx:${Math.cos(angle) * dist}px;
+      --dy:${Math.sin(angle) * dist}px;
+      box-shadow:0 0 6px ${color};
+    `;
+    document.body.appendChild(p);
+    p.addEventListener('animationend', () => p.remove());
+  }
+}
+
 function animateRemoval(match, callback) {
   const row = document.getElementById('chainRow');
   for (let i = match.left; i <= match.right; i++) {
     const ball = row.querySelector('.ball[data-index="' + i + '"]');
-    if (ball) ball.classList.add('removing');
+    if (ball) {
+      burstParticles(ball);
+      ball.classList.add('removing');
+    }
   }
   setTimeout(callback, 300);
 }
