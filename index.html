@@ -1269,27 +1269,66 @@ function createTutorialPlayer() {
       const row = document.getElementById('tutChainRow');
       if (!row) return;
       row.innerHTML = '';
+      row.style.display = 'flex';
+      row.style.flexDirection = 'column';
+      row.style.alignItems = 'center';
+      row.style.gap = '0';
 
-      this._renderSlot(row, 0, hintSlotIdx);
+      const BALLS_PER_ROW = 5;
+      const totalRows = Math.ceil((this.chain.length + 1) / BALLS_PER_ROW);
 
-      this.chain.forEach((ball, i) => {
-        const el = document.createElement('div');
-        el.className = 'ball';
-        el.dataset.index = i;
-        // Glow if this ball is adjacent to the hint slot
-        if (hintSlotIdx !== undefined && (i === hintSlotIdx - 1 || i === hintSlotIdx)) {
-          el.classList.add('glow');
+      for (let r = 0; r < totalRows; r++) {
+        const startIdx = r * BALLS_PER_ROW;
+        const endIdx = Math.min(startIdx + BALLS_PER_ROW, this.chain.length);
+        const isReverse = (r % 2 === 1);
+
+        if (r > 0) {
+          const conn = document.createElement('div');
+          conn.style.cssText = 'width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,208,96,0.15),transparent);margin:2px 0;';
+          row.appendChild(conn);
         }
-        el.style.setProperty('--ball-color', COLOR_MAP[ball.color]);
-        el.style.backgroundColor = COLOR_MAP[ball.color];
-        row.appendChild(el);
-        this._renderSlot(row, i + 1, hintSlotIdx);
-      });
+
+        const subrow = document.createElement('div');
+        subrow.style.cssText = 'display:flex;align-items:center;' + (isReverse ? 'flex-direction:row-reverse;' : '');
+
+        if (isReverse) {
+          this._renderSlot(subrow, endIdx, hintSlotIdx);
+          for (let i = endIdx - 1; i >= startIdx; i--) {
+            const el = document.createElement('div');
+            el.className = 'ball';
+            el.dataset.index = i;
+            if (hintSlotIdx !== undefined && (i === hintSlotIdx - 1 || i === hintSlotIdx)) {
+              el.classList.add('glow');
+            }
+            el.style.setProperty('--ball-color', COLOR_MAP[this.chain[i].color]);
+            el.style.backgroundColor = COLOR_MAP[this.chain[i].color];
+            subrow.appendChild(el);
+            this._renderSlot(subrow, i, hintSlotIdx);
+          }
+        } else {
+          this._renderSlot(subrow, startIdx, hintSlotIdx);
+          for (let i = startIdx; i < endIdx; i++) {
+            const el = document.createElement('div');
+            el.className = 'ball';
+            el.dataset.index = i;
+            if (hintSlotIdx !== undefined && (i === hintSlotIdx - 1 || i === hintSlotIdx)) {
+              el.classList.add('glow');
+            }
+            el.style.setProperty('--ball-color', COLOR_MAP[this.chain[i].color]);
+            el.style.backgroundColor = COLOR_MAP[this.chain[i].color];
+            subrow.appendChild(el);
+            this._renderSlot(subrow, i + 1, hintSlotIdx);
+          }
+        }
+
+        row.appendChild(subrow);
+      }
     },
 
     _renderSlot(container, index, hintIdx) {
       const slot = document.createElement('div');
       slot.className = 'insert-slot';
+      slot.dataset.index = index;
       if (index === hintIdx) slot.classList.add('hint');
       container.appendChild(slot);
     },
@@ -1630,26 +1669,64 @@ function renderGuidedChain() {
   const row = document.getElementById('tutChainRow');
   if (!row || !guidedState) return;
   row.innerHTML = '';
+  row.style.display = 'flex';
+  row.style.flexDirection = 'column';
+  row.style.alignItems = 'center';
+  row.style.gap = '0';
 
   const renderSlot = (container, index) => {
     const slot = document.createElement('div');
     slot.className = 'insert-slot';
+    slot.dataset.index = index;
     if (guidedState.done || guidedState.queueIdx >= guidedState.queue.length) {
       slot.style.opacity = '0.3';
     }
     container.appendChild(slot);
   };
 
-  renderSlot(row, 0);
-  guidedState.chain.forEach((ball, i) => {
-    const el = document.createElement('div');
-    el.className = 'ball';
-    el.dataset.index = i;
-    el.style.setProperty('--ball-color', COLOR_MAP[ball.color]);
-    el.style.backgroundColor = COLOR_MAP[ball.color];
-    row.appendChild(el);
-    renderSlot(row, i + 1);
-  });
+  const BALLS_PER_ROW = 5;
+  const totalRows = Math.ceil((guidedState.chain.length + 1) / BALLS_PER_ROW);
+
+  for (let r = 0; r < totalRows; r++) {
+    const startIdx = r * BALLS_PER_ROW;
+    const endIdx = Math.min(startIdx + BALLS_PER_ROW, guidedState.chain.length);
+    const isReverse = (r % 2 === 1);
+
+    if (r > 0) {
+      const conn = document.createElement('div');
+      conn.style.cssText = 'width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,208,96,0.15),transparent);margin:2px 0;';
+      row.appendChild(conn);
+    }
+
+    const subrow = document.createElement('div');
+    subrow.style.cssText = 'display:flex;align-items:center;' + (isReverse ? 'flex-direction:row-reverse;' : '');
+
+    if (isReverse) {
+      renderSlot(subrow, endIdx);
+      for (let i = endIdx - 1; i >= startIdx; i--) {
+        const el = document.createElement('div');
+        el.className = 'ball';
+        el.dataset.index = i;
+        el.style.setProperty('--ball-color', COLOR_MAP[guidedState.chain[i].color]);
+        el.style.backgroundColor = COLOR_MAP[guidedState.chain[i].color];
+        subrow.appendChild(el);
+        renderSlot(subrow, i);
+      }
+    } else {
+      renderSlot(subrow, startIdx);
+      for (let i = startIdx; i < endIdx; i++) {
+        const el = document.createElement('div');
+        el.className = 'ball';
+        el.dataset.index = i;
+        el.style.setProperty('--ball-color', COLOR_MAP[guidedState.chain[i].color]);
+        el.style.backgroundColor = COLOR_MAP[guidedState.chain[i].color];
+        subrow.appendChild(el);
+        renderSlot(subrow, i + 1);
+      }
+    }
+
+    row.appendChild(subrow);
+  }
 
   // Current ball
   const nextEl = document.getElementById('tutNextBall');
