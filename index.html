@@ -1,0 +1,2396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>祖玛训练 · Zuma Trainer</title>
+<style>
+/* ================================================================== */
+/* RESET & BASE — 祖玛神庙风格                                          */
+/* ================================================================== */
+:root {
+  --red:       #E24B4A;
+  --red-dark:  #b83a39;
+  --green:     #639922;
+  --green-dark:#4d7a1a;
+  --blue:      #378ADD;
+  --blue-dark: #2a6db3;
+  --yellow:    #EF9F27;
+  --yellow-dark:#c47e1a;
+  --gold:      #FFD060;
+  --gold-dim:  #b8943a;
+  --amber:     #FFB347;
+  --bg:        #1A1208;
+  --surface:   #241a0c;
+  --surface2:  #2d2010;
+  --surface3:  #352818;
+  --text:      #e8dfd0;
+  --muted:     #9a8e78;
+  --radius:    10px;
+  --font:      'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  min-height: 100vh;
+}
+
+/* ---- Stone texture + vignette ---- */
+body {
+  display: flex; justify-content: center; align-items: flex-start;
+  padding: 12px; position: relative;
+}
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse at 25% 15%, rgba(140,110,60,0.06) 0%, transparent 55%),
+    radial-gradient(ellipse at 75% 40%, rgba(140,110,60,0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 60% 85%, rgba(0,0,0,0.4) 0%, transparent 65%);
+}
+body::after {
+  content: ''; position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.65) 100%);
+}
+
+/* ---- App shell — mobile-first, max 390px ---- */
+.app-shell {
+  position: relative; z-index: 2;
+  background: linear-gradient(180deg, var(--surface2) 0%, var(--surface) 100%);
+  border-radius: 16px; padding: 22px 16px;
+  max-width: 390px; width: 100%;
+  box-shadow:
+    0 4px 24px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.03);
+  min-height: 560px;
+  display: flex; flex-direction: column;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+/* ---- Header — 深色卡片 + 金色文字 ---- */
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px; gap: 10px;
+  background: var(--surface3);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.app-header .logo {
+  font-size: 16px; font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.5px;
+}
+.app-header .nav-btn {
+  background: rgba(0,0,0,0.3); border: 1px solid rgba(255,208,96,0.25);
+  color: var(--gold-dim); padding: 5px 12px; border-radius: 14px;
+  font-size: 11px; cursor: pointer; font-family: inherit; transition: all 200ms;
+}
+.app-header .nav-btn:hover {
+  border-color: var(--gold); color: var(--gold);
+  box-shadow: 0 0 8px rgba(255,208,96,0.15);
+}
+
+/* ---- Page visibility ---- */
+.page { display: none; flex: 1; flex-direction: column; }
+.page.active { display: flex; }
+
+/* ---- Section title ---- */
+.section-title {
+  font-size: 11px; color: var(--gold-dim); text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 10px; text-align: center;
+}
+
+/* ---- Skill tag ---- */
+.skill-tag {
+  display: inline-block; background: rgba(255,208,96,0.08);
+  padding: 2px 10px; border-radius: 10px; font-size: 10px;
+  color: var(--gold-dim); border: 1px solid rgba(255,208,96,0.12);
+}
+
+/* ---- Star ---- */
+.star { color: #3a3025; font-size: 18px; text-shadow: 0 1px 0 rgba(0,0,0,0.3); }
+.star.filled { color: var(--gold); text-shadow: 0 0 6px rgba(255,208,96,0.4); }
+
+/* ---- Buttons — 深色底+金色边框+金色文字 ---- */
+.btn {
+  padding: 10px 22px; border-radius: 22px; border: 1.5px solid rgba(255,208,96,0.35);
+  font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font);
+  transition: all 200ms; display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(20,10,4,0.8); color: var(--gold-dim);
+}
+.btn:active { transform: scale(0.95); }
+.btn-primary {
+  background: linear-gradient(180deg, rgba(40,25,8,0.9) 0%, rgba(20,10,4,0.95) 100%);
+  border-color: var(--gold); color: var(--gold);
+  box-shadow: 0 0 12px rgba(255,208,96,0.12);
+}
+.btn-primary:hover {
+  box-shadow: 0 0 20px rgba(255,208,96,0.25);
+  border-color: #ffe08a;
+}
+.btn-accent {
+  background: linear-gradient(180deg, rgba(255,179,71,0.2) 0%, rgba(180,130,40,0.2) 100%);
+  border-color: var(--amber); color: var(--amber);
+  box-shadow: 0 0 12px rgba(255,179,71,0.15);
+}
+.btn-accent:hover { box-shadow: 0 0 22px rgba(255,179,71,0.3); }
+.btn-outline {
+  background: transparent; color: var(--muted);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.btn-outline:hover { border-color: rgba(255,255,255,0.3); color: var(--text); }
+.btn-sm { padding: 5px 14px; font-size: 11px; border-radius: 16px; }
+.btn-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* ================================================================== */
+/* PAGE 0: HOME                                                        */
+/* ================================================================== */
+.home-content {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 28px; text-align: center; padding: 20px 0;
+}
+.home-icon {
+  font-size: 72px;
+  animation: home-float 2.8s ease-in-out infinite;
+  filter: drop-shadow(0 4px 20px rgba(255,179,71,0.3));
+}
+@keyframes home-float {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-10px); }
+}
+.home-title {
+  font-size: 28px; font-weight: 800; color: var(--gold);
+  letter-spacing: 2px;
+  text-shadow: 0 0 30px rgba(255,208,96,0.2);
+}
+.home-subtitle {
+  font-size: 13px; color: var(--gold-dark);
+  line-height: 1.7; max-width: 260px;
+}
+/* Decorative mini balls row */
+.home-balls {
+  display: flex; gap: 8px; justify-content: center;
+}
+.home-ball {
+  width: 16px; height: 16px; border-radius: 50%;
+  position: relative; overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+.home-ball::after {
+  content: ''; position: absolute;
+  top: 12%; left: 18%; width: 38%; height: 28%;
+  background: rgba(255,255,255,0.35); border-radius: 50%;
+  transform: rotate(-28deg); pointer-events: none;
+}
+.home-start-btn {
+  padding: 14px 48px; border-radius: 26px;
+  border: 2px solid var(--gold);
+  font-size: 17px; font-weight: 700; cursor: pointer;
+  font-family: inherit; letter-spacing: 1px;
+  background: linear-gradient(180deg, rgba(45,28,8,0.95) 0%, rgba(20,10,4,0.98) 100%);
+  color: var(--gold);
+  box-shadow: 0 0 24px rgba(255,208,96,0.18);
+  transition: all 200ms;
+}
+.home-start-btn:active { transform: scale(0.95); box-shadow: 0 0 36px rgba(255,208,96,0.3); }
+.home-footer {
+  font-size: 10px; color: rgba(255,255,255,0.15);
+  letter-spacing: 1px;
+}
+
+/* ================================================================== */
+/* PAGE 1: GUIDE — 教学总览 + 动画演示                                   */
+/* ================================================================== */
+.guide-content { flex: 1; display: flex; flex-direction: column; }
+
+/* ---- Overview mode ---- */
+.tutorial-overview { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.tutorial-overview .tut-section-title {
+  font-size: 12px; color: var(--gold-dim); text-transform: uppercase;
+  letter-spacing: 1.5px; text-align: center; margin-bottom: 4px;
+}
+.tut-card {
+  display: flex; align-items: center; gap: 14px;
+  background: #261A08;
+  border: 1px solid #3D2E10;
+  border-radius: 12px;
+  padding: 16px 14px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.35);
+  cursor: pointer;
+  transition: all 200ms;
+}
+.tut-card:active { transform: scale(0.97); }
+.tut-card.locked { opacity: 0.35; cursor: not-allowed; filter: grayscale(0.4); }
+.tut-card.locked:active { transform: none; }
+.tut-card.completed { border-color: rgba(255,208,96,0.2); }
+.tut-card .tut-icon {
+  font-size: 32px; flex-shrink: 0; width: 48px; text-align: center;
+}
+.tut-card .tut-info { flex: 1; min-width: 0; }
+.tut-card .tut-info .tut-name {
+  font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 3px;
+}
+.tut-card .tut-info .tut-desc {
+  font-size: 11px; color: #8A7040; line-height: 1.5;
+}
+.tut-card .tut-badge {
+  font-size: 10px; padding: 3px 8px; border-radius: 8px;
+  background: rgba(255,208,96,0.1); color: var(--gold-dim);
+  border: 1px solid rgba(255,208,96,0.15); white-space: nowrap;
+}
+.tut-card.completed .tut-badge { background: rgba(99,153,34,0.1); color: var(--green); border-color: rgba(99,153,34,0.2); }
+.tut-card .tut-arrow { color: var(--gold-dim); font-size: 16px; flex-shrink: 0; }
+
+/* ---- Playing mode (animation) ---- */
+.tutorial-play { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+.tutorial-play .teach-card {
+  background: #261A08;
+  border: 1px solid #3D2E10;
+  border-radius: 14px;
+  padding: 22px 16px 18px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.45);
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px;
+}
+.tutorial-play .ball-row {
+  display: flex; align-items: center; justify-content: flex-start;
+  flex-wrap: nowrap; overflow-x: auto;
+  background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.05) 50%, rgba(0,0,0,0.3) 100%);
+  border-radius: 28px; padding: 10px 8px;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);
+  border: 1px solid rgba(0,0,0,0.25);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tutorial-play .ball-row::-webkit-scrollbar { display: none; }
+.tutorial-play .ball {
+  width: 42px; height: 42px; border-radius: 50%;
+  position: relative; overflow: hidden;
+  box-shadow: inset 0 -4px 8px rgba(0,0,0,0.4), 0 3px 8px rgba(0,0,0,0.5);
+  flex-shrink: 0;
+}
+.tutorial-play .ball::after {
+  content: ''; position: absolute;
+  top: 11%; left: 17%; width: 40%; height: 30%;
+  background: rgba(255,255,255,0.32); border-radius: 50%;
+  transform: rotate(-28deg); pointer-events: none;
+}
+.tutorial-play .insert-slot {
+  width: 24px; height: 42px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; position: relative;
+}
+.tutorial-play .insert-slot::after {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.1); pointer-events: none;
+}
+.tutorial-play .insert-slot.hint::after {
+  background: #FFB347; transform: scale(2.5);
+  box-shadow: 0 0 16px rgba(255,179,71,0.8), 0 0 32px rgba(255,179,71,0.4);
+  animation: pulse-hint 1.1s ease-in-out infinite;
+}
+@keyframes pulse-hint {
+  0%,100% { box-shadow: 0 0 16px rgba(255,179,71,0.6), 0 0 28px rgba(255,179,71,0.3); }
+  50%     { box-shadow: 0 0 26px rgba(255,179,71,1.0), 0 0 46px rgba(255,179,71,0.55); }
+}
+.tutorial-play .teach-title {
+  font-size: 17px; font-weight: 700; color: var(--text); text-align: center;
+}
+.tutorial-play .teach-desc {
+  font-size: 13px; color: #8A7040; text-align: center; line-height: 1.7; min-height: 36px;
+  transition: opacity 300ms;
+}
+.tutorial-play .teach-divider {
+  width: 100%; height: 1px; background: #3D2E10; opacity: 0.5;
+}
+.tutorial-play .teach-next-label {
+  font-size: 12px; color: #8A7040; letter-spacing: 0.5px;
+}
+.tutorial-play .teach-next-ball {
+  width: 50px; height: 50px; border-radius: 50%; position: relative; overflow: hidden;
+  box-shadow: inset 0 -4px 8px rgba(0,0,0,0.35), 0 0 28px currentColor, 0 0 48px currentColor;
+  animation: pulse-glow 1.5s ease-in-out infinite; flex-shrink: 0;
+  background-color: var(--ball-color, #555);
+}
+.tutorial-play .teach-next-ball::after {
+  content: ''; position: absolute;
+  top: 11%; left: 17%; width: 40%; height: 30%;
+  background: rgba(255,255,255,0.34); border-radius: 50%;
+  transform: rotate(-28deg); pointer-events: none;
+}
+.tutorial-play .teach-next-ball::before {
+  content: ''; position: absolute;
+  bottom: -4%; left: 5%; width: 90%; height: 38%;
+  background: rgba(0,0,0,0.2); border-radius: 50%; pointer-events: none;
+}
+@keyframes pulse-glow {
+  0%,100% { box-shadow: inset 0 -4px 8px rgba(0,0,0,0.35), 0 0 22px currentColor, 0 0 38px currentColor; }
+  50%     { box-shadow: inset 0 -4px 8px rgba(0,0,0,0.35), 0 0 34px currentColor, 0 0 58px currentColor; }
+}
+/* ---- Playing bottom bar ---- */
+.tutorial-play .play-bottom {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px;
+}
+.tutorial-play .play-dots { display: flex; gap: 7px; }
+.tutorial-play .play-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.1); transition: all 300ms;
+}
+.tutorial-play .play-dot.active { background: var(--gold); width: 20px; border-radius: 3px; }
+.tutorial-play .play-dot.done { background: var(--green); }
+/* ---- Glow on adjacent balls during hint ---- */
+.tutorial-play .ball.glow {
+  animation: ball-glow 0.8s ease-in-out infinite;
+}
+@keyframes ball-glow {
+  0%,100% { box-shadow: inset 0 -4px 8px rgba(0,0,0,0.4), 0 3px 8px rgba(0,0,0,0.5), 0 0 12px var(--ball-color, #fff); }
+  50%     { box-shadow: inset 0 -4px 8px rgba(0,0,0,0.4), 0 3px 8px rgba(0,0,0,0.5), 0 0 28px var(--ball-color, #fff), 0 0 42px var(--ball-color, #fff); }
+}
+/* ---- Preview next-next ball (guided mode) ---- */
+.next-preview {
+  display: flex; align-items: center; gap: 10px; justify-content: center;
+}
+.next-preview-ball {
+  width: 26px; height: 26px; border-radius: 50%;
+  position: relative; overflow: hidden; flex-shrink: 0;
+  opacity: 0.35; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+.next-preview-ball::after {
+  content: ''; position: absolute;
+  top: 11%; left: 17%; width: 38%; height: 28%;
+  background: rgba(255,255,255,0.28); border-radius: 50%;
+  transform: rotate(-28deg); pointer-events: none;
+}
+
+/* ---- Modal overlay ---- */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn 200ms ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal-box {
+  background: var(--surface2);
+  border: 1px solid rgba(255,208,96,0.2);
+  border-radius: 16px;
+  padding: 28px 24px 22px;
+  max-width: 300px; width: 90%;
+  text-align: center;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+.modal-box h3 {
+  font-size: 18px; font-weight: 700; color: var(--gold);
+  margin-bottom: 6px;
+}
+.modal-box p {
+  font-size: 12px; color: var(--muted); margin-bottom: 20px; line-height: 1.6;
+}
+.modal-box .modal-btns {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.modal-box .modal-btn {
+  padding: 14px 20px; border-radius: 14px;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  font-family: var(--font); transition: all 200ms;
+  border: 1.5px solid rgba(255,208,96,0.3);
+  background: rgba(20,10,4,0.85); color: var(--gold-dim);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.modal-box .modal-btn:active { transform: scale(0.96); }
+.modal-box .modal-btn.primary {
+  border-color: var(--gold); color: var(--gold);
+  background: linear-gradient(180deg, rgba(40,25,8,0.9) 0%, rgba(20,10,4,0.95) 100%);
+  box-shadow: 0 0 16px rgba(255,208,96,0.12);
+}
+.modal-box .modal-close {
+  margin-top: 14px; font-size: 12px; color: var(--muted);
+  background: none; border: none; cursor: pointer; font-family: inherit;
+}
+
+/* ---- Guided mode top bar ---- */
+.guided-top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; flex-wrap: wrap;
+  background: var(--surface3); border-radius: var(--radius);
+  padding: 10px 12px; border: 1px solid rgba(255,255,255,0.05);
+}
+.guided-top .gt-stat {
+  text-align: center; min-width: 40px;
+}
+.guided-top .gt-stat .gt-val { font-size: 16px; font-weight: 700; color: var(--text); }
+.guided-top .gt-stat .gt-label { font-size: 9px; color: var(--muted); }
+.guided-top .gt-btns { display: flex; gap: 6px; }
+
+/* ---- Guided result ---- */
+.guided-result {
+  text-align: center; padding: 12px;
+  background: var(--surface3); border-radius: var(--radius);
+  border: 1px solid rgba(255,208,96,0.1);
+}
+.guided-result .gr-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.guided-result .gr-stats { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.guided-result .gr-stat {
+  background: var(--surface); padding: 10px 14px;
+  border-radius: 8px; text-align: center; min-width: 60px;
+}
+.guided-result .gr-stat .gr-val { font-size: 22px; font-weight: 700; }
+.guided-result .gr-stat .gr-label { font-size: 9px; color: var(--muted); }
+
+/* ================================================================== */
+/* PAGE 2: LEVELS                                                      */
+/* ================================================================== */
+.levels-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 10px; flex: 1; align-content: start;
+}
+.level-card {
+  background: var(--surface3); border-radius: var(--radius);
+  padding: 14px 10px; cursor: pointer; transition: all 200ms;
+  border: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden;
+}
+.level-card:hover {
+  border-color: rgba(255,208,96,0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.level-card.locked { opacity: 0.35; cursor: not-allowed; filter: grayscale(0.5); }
+.level-card.locked:hover { border-color: rgba(255,255,255,0.05); transform: none; box-shadow: none; }
+.level-card.completed { border-color: rgba(255,208,96,0.2); }
+.level-card .lc-num { font-size: 20px; font-weight: 700; margin-bottom: 2px; color: var(--gold); }
+.level-card .lc-name { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.level-card .lc-stars { margin-bottom: 4px; }
+.level-card .lc-skills { display: flex; flex-wrap: wrap; gap: 3px; }
+.level-card .lc-lock { position: absolute; right: 8px; top: 8px; font-size: 14px; opacity: 0.6; }
+
+/* ================================================================== */
+/* PAGE 3: GAME                                                        */
+/* ================================================================== */
+.game-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px; gap: 6px; flex-wrap: wrap;
+  background: var(--surface3); border-radius: var(--radius);
+  padding: 10px 12px; border: 1px solid rgba(255,255,255,0.05);
+}
+.game-stat { text-align: center; min-width: 44px; }
+.game-stat .gs-val { font-size: 18px; font-weight: 700; color: var(--text); }
+.game-stat .gs-label { font-size: 9px; color: var(--muted); margin-top: 1px; }
+
+/* ---- Queue display ---- */
+.queue-bar {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-bottom: 14px; padding: 10px 14px;
+  background: var(--surface3); border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.queue-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.queue-next {
+  width: 42px; height: 42px; border-radius: 50%; position: relative; overflow: hidden;
+  box-shadow: 0 0 18px currentColor;
+  animation: pulse-glow 1.2s ease-in-out infinite;
+  transition: all 200ms;
+}
+.queue-next::after {
+  content: ''; position: absolute; top: 10%; left: 18%; width: 40%; height: 30%;
+  background: rgba(255,255,255,0.32); border-radius: 50%; transform: rotate(-25deg);
+}
+@keyframes pulse-glow {
+  0%,100% { box-shadow: 0 0 12px currentColor; }
+  50%     { box-shadow: 0 0 28px currentColor, 0 0 42px currentColor; }
+}
+.queue-remaining { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+.queue-remaining .qr-dot {
+  width: 18px; height: 18px; border-radius: 50%; position: relative; overflow: hidden;
+  opacity: 0.55; transition: all 300ms;
+}
+.queue-remaining .qr-dot::after {
+  content: ''; position: absolute; top: 10%; left: 18%; width: 36%; height: 28%;
+  background: rgba(255,255,255,0.28); border-radius: 50%; transform: rotate(-25deg);
+}
+
+/* ---- Chain track — 深色凹槽 ---- */
+.chain-area {
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.15) 25%, rgba(0,0,0,0.15) 75%, rgba(0,0,0,0.45) 100%),
+    var(--surface);
+  border-radius: var(--radius); padding: 18px 10px; margin-bottom: 14px;
+  min-height: 96px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(0,0,0,0.4);
+  box-shadow: inset 0 3px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.02);
+}
+.chain-row { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.chain-subrow { display: flex; align-items: center; }
+.chain-subrow.reverse { flex-direction: row-reverse; }
+.chain-connector {
+  width: 100%; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255,208,96,0.2), transparent);
+  margin: 2px 0;
+}
+
+/* ---- Ball — 3D光泽球体 ---- */
+.ball {
+  width: 42px; height: 42px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.8);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  position: relative; overflow: hidden;
+  transition: transform 300ms ease, opacity 300ms ease;
+  box-shadow:
+    inset 0 -3px 6px rgba(0,0,0,0.35),
+    0 2px 6px rgba(0,0,0,0.4);
+  flex-shrink: 0;
+  background-color: var(--ball-color);
+}
+/* 3D highlight: white ellipse top-left */
+.ball::after {
+  content: ''; position: absolute;
+  top: 10%; left: 16%;
+  width: 42%; height: 32%;
+  background: rgba(255,255,255,0.30);
+  border-radius: 50%;
+  transform: rotate(-28deg);
+  pointer-events: none;
+}
+/* Subtle dark shadow at bottom */
+.ball::before {
+  content: ''; position: absolute;
+  bottom: -5%; left: 5%;
+  width: 90%; height: 40%;
+  background: rgba(0,0,0,0.18);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.ball.removing { transform: scale(0); opacity: 0; }
+
+/* ---- Insertion slot — 琥珀色光晕hover ---- */
+.insert-slot {
+  width: 24px; height: 42px; display: flex; align-items: center;
+  justify-content: center; cursor: pointer; flex-shrink: 0; position: relative;
+}
+.insert-slot::after {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.10); transition: all 250ms;
+}
+.insert-slot:hover::after {
+  background: var(--amber);
+  transform: scale(2.2);
+  box-shadow: 0 0 14px rgba(255,179,71,0.7), 0 0 28px rgba(255,179,71,0.3);
+}
+.insert-slot.selected::after {
+  background: var(--amber);
+  transform: scale(2);
+  box-shadow: 0 0 16px rgba(255,179,71,0.8), 0 0 32px rgba(255,179,71,0.35);
+}
+.insert-slot .slot-idx {
+  position: absolute; top: -11px; font-size: 8px;
+  color: var(--muted); opacity: 0; transition: opacity 200ms;
+}
+.insert-slot:hover .slot-idx,
+.insert-slot.selected .slot-idx { opacity: 0.8; color: var(--amber); }
+
+/* ---- Hint bar ---- */
+.hint-bar {
+  text-align: center; font-size: 12px; color: var(--gold-dim);
+  min-height: 18px; margin-bottom: 10px; transition: all 200ms;
+}
+
+/* ---- Level end panel ---- */
+#levelEndPanel {
+  background: var(--surface3); border-radius: var(--radius);
+  padding: 14px; border: 1px solid rgba(255,208,96,0.15);
+}
+
+/* ================================================================== */
+/* PAGE 4: RESULT                                                      */
+/* ================================================================== */
+.result-card {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 16px; text-align: center;
+}
+.result-stars { font-size: 44px; letter-spacing: 6px; }
+.result-grade { font-size: 22px; font-weight: 700; }
+.result-stats { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.result-stat {
+  text-align: center; background: var(--surface3);
+  padding: 12px 18px; border-radius: var(--radius); min-width: 70px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.result-stat .rs-val { font-size: 26px; font-weight: 700; }
+.result-stat .rs-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.result-stat.good .rs-val { color: var(--green); }
+.result-stat.great .rs-val { color: var(--gold); }
+.result-skills { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+
+/* ================================================================== */
+/* PAGE 5: GRADUATION                                                  */
+/* ================================================================== */
+.grad-content {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 16px; text-align: center;
+}
+.grad-icon { font-size: 64px; animation: bounce 1s ease infinite; }
+@keyframes bounce {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-14px); }
+}
+.grad-title { font-size: 24px; font-weight: 700; color: var(--gold); }
+.grad-stats { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.grad-stat {
+  text-align: center; background: var(--surface3);
+  padding: 14px 20px; border-radius: var(--radius);
+  border: 1px solid rgba(255,208,96,0.1);
+}
+.grad-stat .gs-val { font-size: 28px; font-weight: 700; color: var(--gold); }
+.grad-stat .gs-label { font-size: 11px; color: var(--muted); }
+
+/* ================================================================== */
+/* ANIMATIONS                                                          */
+/* ================================================================== */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeInUp 350ms ease both; }
+.delay-1 { animation-delay: 80ms; }
+.delay-2 { animation-delay: 160ms; }
+.delay-3 { animation-delay: 240ms; }
+</style>
+</head>
+<body>
+
+<div class="app-shell" id="appShell">
+  <!-- Shared Header -->
+  <div class="app-header">
+    <span class="logo">🔮 祖玛训练</span>
+    <span id="headerRight"></span>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- PAGE 0: HOME                                                     -->
+  <!-- ================================================================ -->
+  <div class="page" id="page-home">
+    <div class="home-content">
+      <div class="home-icon">🔮</div>
+      <div class="home-title">祖玛训练</div>
+      <div class="home-balls">
+        <div class="home-ball" style="background-color:#E24B4A;"></div>
+        <div class="home-ball" style="background-color:#639922;"></div>
+        <div class="home-ball" style="background-color:#378ADD;"></div>
+        <div class="home-ball" style="background-color:#EF9F27;"></div>
+      </div>
+      <div class="home-subtitle">掌握三消技巧<br>从零成为祖玛高手</div>
+      <button class="home-start-btn" id="btnStart">开始游戏</button>
+      <div class="home-footer">ZUMA TRAINER</div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- PAGE 1: GUIDE (教学卡片)                                          -->
+  <!-- ================================================================ -->
+  <div class="page" id="page-guide">
+    <div class="guide-content" id="guideContent"></div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- PAGE 2: LEVELS                                                   -->
+  <!-- ================================================================ -->
+  <div class="page" id="page-levels">
+    <div class="section-title" style="margin-bottom:16px;">选择关卡</div>
+    <div class="levels-grid" id="levelsGrid"></div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- PAGE 3: GAME                                                     -->
+  <!-- ================================================================ -->
+  <div class="page" id="page-game">
+    <div class="game-top">
+      <div class="game-stat"><div class="gs-val" id="gStatStep">0</div><div class="gs-label">步数</div></div>
+      <div class="game-stat"><div class="gs-val" id="gStatCombo" style="color:var(--yellow)">0</div><div class="gs-label">本次连锁</div></div>
+      <div class="game-stat"><div class="gs-val" id="gStatRemain">0</div><div class="gs-label">剩余球</div></div>
+      <div class="game-stat"><div class="gs-val" id="gStatPar" style="color:var(--accent)">-</div><div class="gs-label">目标Par</div></div>
+      <button class="btn btn-outline btn-sm" onclick="router.navigate('#levels')">✕ 退出</button>
+    </div>
+
+    <!-- Queue display -->
+    <div class="queue-bar" id="queueBar">
+      <span class="queue-label">当前球</span>
+      <div class="queue-next" id="queueNext"></div>
+      <span style="font-size:12px;color:var(--muted);margin:0 8px;">|</span>
+      <span class="queue-label">等待中</span>
+      <div class="queue-remaining" id="queueRemaining"></div>
+    </div>
+
+    <!-- Hint -->
+    <div class="hint-bar" id="hintBar"></div>
+
+    <!-- Chain display -->
+    <div class="chain-area">
+      <div class="chain-row" id="chainRow"></div>
+    </div>
+
+    <!-- Level end panel (overlay) -->
+    <div id="levelEndPanel" style="display:none; text-align:center; padding:12px 0;">
+      <div style="font-size:20px;font-weight:700;margin-bottom:12px;" id="levelEndMsg"></div>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-sm" onclick="retryLevel()">🔄 再来一次</button>
+        <button class="btn btn-primary btn-sm" onclick="finishLevel()">📊 查看结果</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- PAGE 4: RESULT                                                   -->
+  <!-- ================================================================ -->
+  <div class="page" id="page-result">
+    <div class="result-card" id="resultCard"></div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- PAGE 5: GRADUATION                                               -->
+  <!-- ================================================================ -->
+  <div class="page" id="page-graduation">
+    <div class="grad-content" id="gradContent"></div>
+  </div>
+</div>
+
+<!-- Level data -->
+<script src="levels.js?v=3"></script>
+
+<!-- ================================================================== -->
+<!-- APPLICATION LOGIC                                                   -->
+<!-- ================================================================== -->
+<script>
+// ======================================================================
+// COLOR MAP
+// ======================================================================
+const COLOR_MAP = {
+  red:    '#E24B4A',
+  green:  '#639922',
+  blue:   '#378ADD',
+  yellow: '#EF9F27',
+};
+const COLOR_NAMES = Object.keys(COLOR_MAP);
+
+// ======================================================================
+// STORAGE HELPERS
+// ======================================================================
+const STORAGE_KEY = 'zuma_trainer_progress';
+
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function saveProgress(progress) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+}
+
+/** Update completion for a level, only if better than previous */
+function updateLevelProgress(levelId, steps, allCleared) {
+  const p = loadProgress();
+  const prev = p[levelId];
+  const stars = allCleared ? (steps <= getLevel(levelId).par ? 3 : steps <= getLevel(levelId).par * 2 ? 2 : 1) : 0;
+  if (!prev || stars > prev.stars || (stars === prev.stars && steps < prev.bestSteps)) {
+    p[levelId] = {
+      completed: stars > 0,
+      stars: stars,
+      bestSteps: allCleared ? steps : (prev ? prev.bestSteps : 0),
+      attempts: (prev ? prev.attempts : 0) + 1,
+      lastPlayed: Date.now()
+    };
+    saveProgress(p);
+  } else if (prev) {
+    // Still increment attempts
+    p[levelId].attempts = (prev.attempts || 0) + 1;
+    p[levelId].lastPlayed = Date.now();
+    saveProgress(p);
+  }
+  return p[levelId];
+}
+
+function getLevel(id) {
+  return ZUMA_LEVELS.find(l => l.id === id);
+}
+
+function isLevelUnlocked(id) {
+  if (id === 1) return true;
+  // Tutorial-seen users get all existing levels unlocked
+  if (localStorage.getItem('zuma_tutorial_seen') && id <= ZUMA_LEVELS.length) return true;
+  const p = loadProgress();
+  const prev = p[id - 1];
+  const prev2 = p[id - 2];
+  if (prev && prev.completed) return true;
+  if (prev2 && prev2.completed) return true;
+  if (prev && prev.attempts >= 1) return true;
+  return false;
+}
+
+function countCompletedLevels() {
+  const p = loadProgress();
+  return Object.values(p).filter(v => v.completed).length;
+}
+
+function isAllCompleted() {
+  return countCompletedLevels() >= ZUMA_LEVELS.length;
+}
+
+// ======================================================================
+// ROUTER
+// ======================================================================
+const router = {
+  _current: '',
+
+  navigate(hash) {
+    const pageName = (hash || '#guide').replace('#', '').split('/')[0];
+    this._current = pageName;
+
+    // Hide all pages
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+
+    // Show target page
+    const target = document.getElementById('page-' + pageName);
+    if (target) target.classList.add('active');
+
+    // Header right slot
+    const hr = document.getElementById('headerRight');
+    hr.innerHTML = '';
+
+    // Dispatch to page init
+    switch (pageName) {
+      case 'home':   initHome(); break;
+      case 'guide':  initGuide(); break;
+      case 'levels': initLevels(); break;
+      case 'game':   initGame(); break;
+      case 'result': initResult(); break;
+      case 'graduation': initGraduation(); break;
+    }
+
+    window.scrollTo(0, 0);
+  }
+};
+
+window.addEventListener('hashchange', () => {
+  router.navigate(window.location.hash);
+});
+
+// ======================================================================
+// PAGE 0: HOME
+// ======================================================================
+function initHome() {
+  document.getElementById('headerRight').innerHTML =
+    '<button class="nav-btn" onclick="router.navigate(\'#guide\')">教学</button>' +
+    '<button class="nav-btn" style="margin-left:6px;" onclick="router.navigate(\'#levels\')">关卡 →</button>';
+}
+
+document.getElementById('btnStart').addEventListener('click', () => {
+  const seen = localStorage.getItem('zuma_tutorial_seen');
+  router.navigate(seen ? '#levels' : '#guide');
+});
+
+// ======================================================================
+// TUTORIAL PROGRESS HELPERS
+// ======================================================================
+const TUT_PROGRESS_KEY = 'zuma_tutorial_progress';
+
+function loadTutProgress() {
+  try { return JSON.parse(localStorage.getItem(TUT_PROGRESS_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveTutProgress(p) {
+  localStorage.setItem(TUT_PROGRESS_KEY, JSON.stringify(p));
+}
+
+function markTutDone(tutId, status) {
+  const p = loadTutProgress();
+  p[tutId] = status; // 'completed' | 'skipped'
+  saveTutProgress(p);
+}
+
+function isTutCompleted(tutId) {
+  const p = loadTutProgress();
+  return p[tutId] === 'completed';
+}
+
+// ======================================================================
+// ======================================================================
+// OPTIMAL SOLVER (BFS)
+// ======================================================================
+function applyMatchesToChain(chain) {
+  // Repeatedly find and remove matches until none left
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let i = 0; i < chain.length; i++) {
+      const match = findMatches(chain, i);
+      if (match) {
+        chain.splice(match.left, match.right - match.left + 1);
+        changed = true;
+        break;
+      }
+    }
+  }
+  return chain;
+}
+
+function solveOptimal(chainColors, queueColors) {
+  // BFS: find minimum steps to clear all balls
+  const initialChain = chainColors.map((c, i) => ({ color: c, id: i }));
+  let nextId = chainColors.length;
+
+  const queue = [{ chain: initialChain, queueIdx: 0, steps: [] }];
+  const seen = new Set();
+  const MAX_STATES = 500000;
+  let visited = 0;
+
+  while (queue.length > 0 && visited < MAX_STATES) {
+    const state = queue.shift();
+    visited++;
+    const key = state.chain.map(b => b.color[0]).join('') + '|' + state.queueIdx;
+
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    if (state.chain.length === 0) {
+      return state.steps;
+    }
+
+    if (state.queueIdx >= queueColors.length) continue;
+
+    const color = queueColors[state.queueIdx];
+    for (let i = 0; i <= state.chain.length; i++) {
+      const newChain = state.chain.map(b => ({ color: b.color, id: b.id }));
+      newChain.splice(i, 0, { color, id: nextId++ });
+      const afterMatches = applyMatchesToChain(newChain);
+
+      queue.push({
+        chain: afterMatches,
+        queueIdx: state.queueIdx + 1,
+        steps: [...state.steps, { slot: i }],
+      });
+    }
+  }
+
+  return null; // no solution found or max states reached
+}
+
+// Pre-compute optimal solutions for all tutorials
+function computeOptimalForScript(script) {
+  return solveOptimal(script.initialChain, script.queue);
+}
+
+// ======================================================================
+// TUTORIAL SCRIPTS — 三级教学
+// ======================================================================
+const TUTORIAL_SCRIPTS = [
+  {
+    id: 'basic', tier: 1, icon: '🎯', name: '基础教学',
+    subtitle: '插入与三消',
+    skills: ['基础瞄准', '三消入门'],
+    initialChain: ['red','red','green','green'],
+    queue: ['red','green'],
+    steps: [
+      { type:'message', text:'欢迎来到基础教学！<br>观察这条球链：红红绿绿', pause:2000 },
+      { type:'highlight', slotIdx:1, text:'找到两颗红球之间的缝隙', pause:2000 },
+      { type:'insert', slotIdx:1, text:'红球插入！三连消除！💥' },
+      { type:'message', text:'消除后球链合拢，<br>剩下两颗绿球相邻', pause:2000 },
+      { type:'highlight', slotIdx:0, text:'现在将绿球插入绿球之间', pause:2000 },
+      { type:'insert', slotIdx:0, text:'绿球三连消！全部清空！🎉' },
+      { type:'message', text:'这就是基础的插入-消除流程。<br>找到同色球之间的空隙，插入即可！', pause:2500 },
+      { type:'summary', title:'📖 基础要点',
+        points: [
+          '找到<strong>相邻的两颗同色球</strong>（核心对）',
+          '在它们之间插入同色球 → 3连消除',
+          '消除后球链合拢，可能触发新的3连（连锁）',
+          '这就是所有高级战术的基石'
+        ],
+        tip: '熟记：两颗同色球之间 = 你的目标插入位置' },
+      { type:'end' },
+    ]
+  },
+  {
+    id: 'intermediate', tier: 2, icon: '💥', name: '中阶教学',
+    subtitle: '连锁反应 · 一石二鸟',
+    skills: ['连锁消除', '一石二鸟', '预判合拢'],
+    // 12球: 四组三色 — 插入→消除→合拢→连锁
+    initialChain: ['red','red','green','green','red','red','blue','blue','yellow','yellow'],
+    queue: ['yellow','red','green','blue','red'],
+    steps: [
+      { type:'message', text:'中阶教学：布局引爆策略！<br>先布局，最后一击全灭！', pause:2000 },
+      { type:'message', text:'初始：红红绿绿红红蓝蓝黄黄<br>队列：黄红绿蓝红（5颗）', pause:2500 },
+      { type:'highlight', slotIdx:0, text:'第1步：黄球从最外侧插入。<br>不急着消除——先布局！', pause:2500 },
+      { type:'insert', slotIdx:0, text:'黄球就位。没有消除——故意的。' },
+      { type:'highlight', slotIdx:9, text:'第2步：红球嵌入蓝黄之间', pause:2200 },
+      { type:'insert', slotIdx:9, text:'红球就位。继续布阵…' },
+      { type:'highlight', slotIdx:10, text:'第3步：绿球穿插进去', pause:2000 },
+      { type:'insert', slotIdx:10, text:'绿球落位。还剩两步…' },
+      { type:'highlight', slotIdx:5, text:'第4步：蓝球嵌入绿红之间', pause:2200 },
+      { type:'insert', slotIdx:5, text:'蓝球就位。最后一颗！' },
+      { type:'highlight', slotIdx:12, text:'第5步：红球——引爆！！', pause:2800 },
+      { type:'insert', slotIdx:12, text:'🔥 红球落下！多米诺效应启动——<br>整条链瞬间崩塌！！！💥💥💥' },
+      { type:'message', text:'全部清空！🎉<br>这就是<strong>布局引爆</strong>：<br>每步都不消，最后一击全灭！', pause:3000 },
+      { type:'summary', title:'🧠 核心穿插法',
+        points: [
+          '找核心：相邻同色球对（如红红、绿绿）',
+          '穿异色：把球插在<strong>不同颜色</strong>之间，不会提前消除',
+          '层层套：每颗球都在核心外面加一层"外套"',
+          '一球引爆：最后一颗球插回核心中间，触发连锁崩塌'
+        ],
+        tip: '球越多核心越多，最后一击的连锁规模越大！' },
+      { type:'end' },
+    ]
+  },
+  {
+    id: 'advanced', tier: 3, icon: '🏆', name: '高阶教学',
+    subtitle: '18球 · 六级多米诺',
+    skills: ['核心穿插法', '顺序规划', '延迟引爆'],
+    // 用户设计的六级多米诺连锁
+    initialChain: ['red','green','green','yellow','red','red','blue','green','yellow','yellow','red','red'],
+    queue: ['green','red','blue','blue','green','green'],
+    // Verified cascade:
+    // Step1: g at slot10 → r,g,g,y,r,r,b,g,y,y,g,r,r (13球, no match)
+    // Step2: r at slot8  → r,g,g,y,r,r,b,g,r,y,y,g,r,r (14球, no match)
+    // Step3: b at slot8  → r,g,g,y,r,r,b,g,b,r,y,y,g,r,r (15球)
+    // Step4: b at slot9  → r,g,g,y,r,r,b,g,b,b,r,y,y,g,r,r (16球, b,b pair)
+    // Step5: g at slot8  → r,g,g,y,r,r,b,g,g,b,b,r,y,y,g,r,r (17球)
+    // Step6: g at slot9  → r,g,g,y,r,r,b,g,g,g,b,b,r,y,y,g,r,r (18球)
+    //   TRIGGER: 3g at 7,8,9 → 3b at 6,7,8 → 3r at 4,5,6 → 3y at 3,4,5 → 3g at 1,2,3 → 3r at 0,1,2 → EMPTY!
+    optimalSolution: [{slot:10},{slot:8},{slot:8},{slot:9},{slot:8},{slot:9}],
+    steps: [
+      { type:'message', text:'高阶教学：六级多米诺！<br>12球 + 6步 = 一击全灭！', pause:2500 },
+      { type:'message', text:'球链：红绿绿黄红红蓝绿黄黄红红<br>队列：绿红蓝蓝绿绿（6颗）', pause:3000 },
+      { type:'highlight', slotIdx:10, text:'第1步：绿球插在黄黄红红之间。<br>黄≠绿≠红→安全！', pause:2500 },
+      { type:'insert', slotIdx:10, text:'绿球嵌入。布局开始——链变长但可控。' },
+      { type:'highlight', slotIdx:8, text:'第2步：红球插在绿黄之间。<br>绿≠红≠黄→安全。', pause:2500 },
+      { type:'insert', slotIdx:8, text:'红球就位。继续穿插…' },
+      { type:'highlight', slotIdx:8, text:'第3步：蓝球插在绿红之间。<br>绿≠蓝≠红→安全。', pause:2500 },
+      { type:'insert', slotIdx:8, text:'第1颗蓝球嵌入。' },
+      { type:'highlight', slotIdx:9, text:'第4步：再插一颗蓝球。<br>蓝≠红→安全。还剩两步！', pause:2500 },
+      { type:'insert', slotIdx:9, text:'第2颗蓝球落位。蓝蓝成对——潜伏中。' },
+      { type:'highlight', slotIdx:8, text:'第5步：绿球插入绿蓝之间。<br>靠近引爆点…', pause:2500 },
+      { type:'insert', slotIdx:8, text:'绿球落位。现在有两颗绿球相邻…' },
+      { type:'highlight', slotIdx:9, text:'第6步：🔥 最后一颗绿球！！<br>插入后形成三绿连珠——引爆！', pause:3500 },
+      { type:'insert', slotIdx:9, text:'🔥🔥🔥 三绿连珠！！<br>3绿消→3蓝消→3红消→3黄消→3绿消→3红消<br><strong>六级多米诺全部崩塌！！！🎉🎉🎉</strong>' },
+      { type:'message', text:'18球 → 全部清空！<br>6步布局 + 6级连锁 = 一击必杀！', pause:3000 },
+      { type:'summary', title:'🧠 核心穿插法 — 终极总结',
+        points: [
+          '<strong>扫描核心</strong>：找出球链中所有相邻同色球对——它们是连锁的燃料',
+          '<strong>异色穿插</strong>：每步在<strong>不同颜色</strong>之间插入——零风险布局',
+          '<strong>制造潜伏</strong>：让新插入的球与相邻球形成新的"潜伏对"（如蓝蓝）',
+          '<strong>核心引爆</strong>：最后一球对准核心，3连消触发→收缩→潜伏对相遇→多米诺',
+          '<strong>六级连锁</strong>：1次引爆 → 6次消除 → 18球全清！球越多、连锁越壮观！'
+        ],
+        tip: '无论球链多长，核心穿插法+潜伏对布局 = 一击必杀！' },
+      { type:'end' },
+    ]
+  }
+];
+
+// Optimal solutions: basic + advanced hardcoded, intermediate via BFS
+TUTORIAL_SCRIPTS[0].optimalSolution = [{slot:1}, {slot:1}]; // basic: 2 steps
+// Advanced: hardcoded, verified manually (core-threading strategy)
+// Already set in object literal above.
+// Intermediate: lazy BFS
+TUTORIAL_SCRIPTS[1]._optCache = null;
+TUTORIAL_SCRIPTS[1].getOptimal = function() {
+  if (this._optCache !== null) return this._optCache;
+  console.log('BFS computing:', this.name);
+  const start = Date.now();
+  this._optCache = solveOptimal(this.initialChain, this.queue) || [];
+  console.log('BFS result:', this.name, this._optCache.length + ' steps,', Date.now() - start + 'ms');
+  console.log('  slots:', this._optCache.map(s => s.slot).join(' → '));
+  this.optimalSolution = this._optCache;
+  return this._optCache;
+};
+
+// ======================================================================
+// TUTORIAL PLAYER — 动画引擎
+// ======================================================================
+let tutPlayer = null;
+
+function createTutorialPlayer() {
+  return {
+    script: null,
+    stepIdx: 0,
+    timers: [],
+    chain: [],
+    nextId: 0,
+    queue: [],
+    queueIdx: 0,
+    running: false,
+    onComplete: null,
+    onStepChange: null,
+
+    load(script) {
+      this.script = script;
+      this.stepIdx = 0;
+      this.chain = script.initialChain.map((c, i) => ({ color: c, id: i }));
+      this.nextId = script.initialChain.length;
+      this.queue = [...script.queue];
+      this.queueIdx = 0;
+      this.running = false;
+      this.timers = [];
+    },
+
+    play() {
+      this.running = true;
+      this.stepIdx = 0;
+      this._renderAll();
+      this._runStep();
+    },
+
+    stop() {
+      this.running = false;
+      this.timers.forEach(clearTimeout);
+      this.timers = [];
+    },
+
+    skip() {
+      this.stop();
+      if (this.onComplete) this.onComplete('skipped');
+    },
+
+    _setTimer(fn, delay) {
+      const t = setTimeout(() => {
+        this.timers = this.timers.filter(x => x !== t);
+        fn();
+      }, delay);
+      this.timers.push(t);
+      return t;
+    },
+
+    _runStep() {
+      if (!this.running) return;
+      if (this.stepIdx >= this.script.steps.length) return;
+      const step = this.script.steps[this.stepIdx];
+      if (this.onStepChange) this.onStepChange(this.stepIdx, step);
+
+      switch (step.type) {
+        case 'message':
+          this._renderAll();
+          this._setTimer(() => { this.stepIdx++; this._runStep(); }, step.pause);
+          break;
+        case 'highlight':
+          this._renderAll(step.slotIdx);
+          this._setTimer(() => { this.stepIdx++; this._runStep(); }, step.pause);
+          break;
+        case 'insert':
+          this._doInsert(step);
+          break;
+        case 'summary':
+          this._renderAll();
+          // Show summary card in the desc area
+          if (this.onStepChange) this.onStepChange(this.stepIdx, step);
+          this._setTimer(() => { this.stepIdx++; this._runStep(); }, 6000);
+          break;
+        case 'end':
+          this.stop();
+          if (this.onComplete) this.onComplete('completed');
+          break;
+      }
+    },
+
+    _doInsert(step) {
+      const color = this.queue[this.queueIdx++];
+      this.chain.splice(step.slotIdx, 0, { color, id: this.nextId++ });
+      this._renderAll();
+
+      this._setTimer(() => {
+        const match = findMatches(this.chain, step.slotIdx);
+        if (match) {
+          this._animateMatch(match, () => {
+            this.stepIdx++;
+            this._runStep();
+          });
+        } else {
+          this.stepIdx++;
+          this._runStep();
+        }
+      }, 600);
+    },
+
+    _animateMatch(match, callback) {
+      // Add removing class to matched balls in DOM
+      const row = document.getElementById('tutChainRow');
+      if (row) {
+        for (let i = match.left; i <= match.right; i++) {
+          const ball = row.querySelector('.ball[data-index="' + i + '"]');
+          if (ball) ball.classList.add('removing');
+        }
+      }
+
+      this._setTimer(() => {
+        this.chain.splice(match.left, match.right - match.left + 1);
+        this._renderAll();
+
+        const gapIdx = Math.min(match.left, this.chain.length - 1);
+        if (this.chain.length > 0 && gapIdx >= 0) {
+          this._setTimer(() => {
+            const nextMatch = findMatches(this.chain, gapIdx);
+            if (nextMatch) {
+              this._animateMatch(nextMatch, callback);
+            } else {
+              callback();
+            }
+          }, 150);
+        } else {
+          callback();
+        }
+      }, 300);
+    },
+
+    _renderAll(hintSlotIdx) {
+      this._renderChain(hintSlotIdx);
+      this._renderNextBall();
+    },
+
+    _renderChain(hintSlotIdx) {
+      const row = document.getElementById('tutChainRow');
+      if (!row) return;
+      row.innerHTML = '';
+
+      this._renderSlot(row, 0, hintSlotIdx);
+
+      this.chain.forEach((ball, i) => {
+        const el = document.createElement('div');
+        el.className = 'ball';
+        el.dataset.index = i;
+        // Glow if this ball is adjacent to the hint slot
+        if (hintSlotIdx !== undefined && (i === hintSlotIdx - 1 || i === hintSlotIdx)) {
+          el.classList.add('glow');
+        }
+        el.style.setProperty('--ball-color', COLOR_MAP[ball.color]);
+        el.style.backgroundColor = COLOR_MAP[ball.color];
+        row.appendChild(el);
+        this._renderSlot(row, i + 1, hintSlotIdx);
+      });
+    },
+
+    _renderSlot(container, index, hintIdx) {
+      const slot = document.createElement('div');
+      slot.className = 'insert-slot';
+      if (index === hintIdx) slot.classList.add('hint');
+      container.appendChild(slot);
+    },
+
+    _renderNextBall() {
+      const el = document.getElementById('tutNextBall');
+      if (!el) return;
+      if (this.queueIdx < this.queue.length) {
+        const color = this.queue[this.queueIdx];
+        el.style.display = '';
+        el.style.setProperty('--ball-color', COLOR_MAP[color]);
+        el.style.backgroundColor = COLOR_MAP[color];
+        el.style.color = COLOR_MAP[color];
+        el.style.boxShadow = `0 0 28px ${COLOR_MAP[color]}, 0 0 48px ${COLOR_MAP[color]}`;
+      } else {
+        el.style.display = 'none';
+      }
+    },
+  };
+}
+
+// ======================================================================
+// PAGE 1: GUIDE — 教学总览 / 弹窗选择 / 演示 / 引导
+// ======================================================================
+let guideMode = 'overview'; // 'overview' | 'demo' | 'guided'
+let guideCurrentTut = null;
+let guidedState = null; // { script, chain, queue, queueIdx, steps:[], nextId }
+
+function initGuide() {
+  localStorage.setItem('zuma_tutorial_seen', '1'); // unlock levels
+  const mode = sessionStorage.getItem('guideMode');
+  const tutId = sessionStorage.getItem('guideTutId');
+  if (mode && tutId) {
+    guideMode = mode;
+    guideCurrentTut = tutId;
+  } else {
+    guideMode = 'overview';
+    guideCurrentTut = null;
+  }
+
+  if (guideMode === 'overview') {
+    renderTutorialOverview();
+  } else if (guideMode === 'demo') {
+    startTutorialPlayback(guideCurrentTut);
+  } else if (guideMode === 'guided') {
+    startGuidedMode(guideCurrentTut);
+  }
+}
+
+// ---- Modal ----
+function showTutorialChoiceModal(tutId) {
+  const script = TUTORIAL_SCRIPTS.find(t => t.id === tutId);
+  if (!script) return;
+
+  const par = script.optimalSolution ? script.optimalSolution.length : '?';
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'tutModal';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <h3>${script.icon} ${script.name}</h3>
+      <p>${script.subtitle} · ${script.skills.join(' / ')}<br>目标 Par：<strong>${par}</strong> 步 | ${script.initialChain.length} 球</p>
+      <div class="modal-btns">
+        <button class="modal-btn primary" id="modalBtnDemo">🎬 观看演示</button>
+        <button class="modal-btn" id="modalBtnGuided">🎮 自己操作</button>
+      </div>
+      <button class="modal-close" id="modalBtnClose">取消</button>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeModal();
+  });
+  document.getElementById('modalBtnClose').addEventListener('click', closeModal);
+  document.getElementById('modalBtnDemo').addEventListener('click', () => {
+    closeModal();
+    startTutorialPlayback(tutId);
+  });
+  document.getElementById('modalBtnGuided').addEventListener('click', () => {
+    closeModal();
+    startGuidedMode(tutId);
+  });
+}
+
+function closeModal() {
+  const overlay = document.getElementById('tutModal');
+  if (overlay) overlay.remove();
+}
+
+// ---- Overview (updated: click card → modal) ----
+function renderTutorialOverview() {
+  guideMode = 'overview';
+  guideCurrentTut = null;
+  sessionStorage.removeItem('guideMode');
+  sessionStorage.removeItem('guideTutId');
+  document.getElementById('headerRight').innerHTML =
+    '<button class="nav-btn" onclick="skipAllTutorials()">跳过全部</button>';
+
+  const container = document.getElementById('guideContent');
+  const allDone = TUTORIAL_SCRIPTS.every(t => isTutCompleted(t.id));
+  const tutProgress = loadTutProgress();
+
+  let cardsHTML = TUTORIAL_SCRIPTS.map(t => {
+    const completed = isTutCompleted(t.id);
+    const par = t.optimalSolution ? t.optimalSolution.length : '?';
+    const badgeText = completed ? '已完成 ✓' : `Par ${par}步 · ${t.initialChain.length}球`;
+    const badgeCls = completed ? 'completed' : '';
+    return `
+      <div class="tut-card ${badgeCls}" data-tut="${t.id}">
+        <div class="tut-icon">${t.icon}</div>
+        <div class="tut-info">
+          <div class="tut-name">${t.name}</div>
+          <div class="tut-desc">${t.subtitle} · ${t.skills.join(' / ')}</div>
+        </div>
+        <span class="tut-badge">${badgeText}</span>
+        <span class="tut-arrow">›</span>
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="tutorial-overview">
+      <div class="tut-section-title">教学训练</div>
+      ${cardsHTML}
+      <div style="text-align:center;margin-top:8px;">
+        <button class="btn btn-outline btn-sm" onclick="skipAllTutorials()">
+          ${allDone ? '重新学习全部' : '直接开始游戏'}
+        </button>
+      </div>
+    </div>`;
+
+  // Bind card clicks → show modal
+  container.querySelectorAll('.tut-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const tutId = card.dataset.tut;
+      if (tutId) showTutorialChoiceModal(tutId);
+    });
+  });
+}
+
+function skipAllTutorials() {
+  TUTORIAL_SCRIPTS.forEach(t => markTutDone(t.id, 'skipped'));
+  localStorage.setItem('zuma_tutorial_seen', '1');
+  router.navigate('#levels');
+}
+
+// ---- Demo mode (auto-play) ----
+function startTutorialPlayback(tutId) {
+  const script = TUTORIAL_SCRIPTS.find(t => t.id === tutId);
+  if (!script) return;
+
+  guideMode = 'demo';
+  guideCurrentTut = tutId;
+  sessionStorage.setItem('guideMode', 'demo');
+  sessionStorage.setItem('guideTutId', tutId);
+  document.getElementById('headerRight').innerHTML = '';
+
+  const container = document.getElementById('guideContent');
+  container.innerHTML = `
+    <div class="tutorial-play">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <button class="btn btn-outline btn-sm" onclick="backToOverview()">‹ 返回</button>
+        <span style="font-size:13px;font-weight:600;color:var(--gold-dim);">${script.name} · 演示模式</span>
+        <button class="btn btn-outline btn-sm" id="btnTutSkip">跳过 ›</button>
+      </div>
+      <div class="play-dots" id="tutStepDots"></div>
+      <div class="teach-card">
+        <div class="ball-row" id="tutChainRow"></div>
+        <div class="teach-title" id="tutTitle">${script.name}</div>
+        <div class="teach-desc" id="tutDesc"></div>
+        <div class="teach-divider"></div>
+        <div class="teach-next-label">下一颗</div>
+        <div class="teach-next-ball" id="tutNextBall"></div>
+      </div>
+      <div class="play-bottom">
+        <button class="btn btn-primary btn-sm" id="btnTutSkip2">跳过演示</button>
+      </div>
+    </div>`;
+
+  document.getElementById('btnTutSkip').addEventListener('click', () => skipCurrentTutorial());
+  document.getElementById('btnTutSkip2').addEventListener('click', () => skipCurrentTutorial());
+
+  const dotsEl = document.getElementById('tutStepDots');
+  dotsEl.innerHTML = script.steps.filter(s => s.type !== 'end').map(() =>
+    '<div class="play-dot"></div>').join('');
+
+  document.getElementById('tutTitle').textContent = script.name;
+  document.getElementById('tutDesc').textContent = script.subtitle;
+
+  tutPlayer = createTutorialPlayer();
+  tutPlayer.load(script);
+
+  tutPlayer.onStepChange = function(idx, step) {
+    const dots = document.getElementById('tutStepDots').children;
+    for (let i = 0; i < dots.length; i++) {
+      dots[i].className = 'play-dot' + (i < idx ? ' done' : i === idx ? ' active' : '');
+    }
+    const descEl = document.getElementById('tutDesc');
+    if (!descEl) return;
+    if (step.type === 'summary') {
+      const pointsHTML = step.points.map(p => `<li style="margin-bottom:6px;">${p}</li>`).join('');
+      descEl.innerHTML = `
+        <div style="text-align:left;line-height:1.6;">
+          <div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:10px;text-align:center;">${step.title}</div>
+          <ol style="padding-left:18px;font-size:12px;color:var(--text);">${pointsHTML}</ol>
+          <div style="margin-top:10px;padding:8px 12px;background:rgba(255,208,96,0.06);border-radius:8px;font-size:11px;color:var(--amber);text-align:center;border:1px solid rgba(255,208,96,0.12);">💡 ${step.tip}</div>
+        </div>`;
+      descEl.style.opacity = '1';
+    } else if (step.text) {
+      descEl.innerHTML = step.text;
+    }
+  };
+
+  tutPlayer.onComplete = function(status) {
+    if (status === 'completed') {
+      markTutDone(script.id, 'completed');
+      document.getElementById('tutTitle').textContent = '✅ ' + script.name + ' 完成！';
+      // Don't overwrite summary card if present
+      if (!script.steps.some(s => s.type === 'summary')) {
+        document.getElementById('tutDesc').textContent = '演示结束，你已经掌握了这项技能';
+      }
+      document.getElementById('tutNextBall').style.display = 'none';
+      document.getElementById('tutStepDots').querySelectorAll('.play-dot').forEach(d => d.classList.add('done'));
+
+      const bottom = document.querySelector('#page-guide .play-bottom');
+      const nextTut = TUTORIAL_SCRIPTS.find(t => t.tier === script.tier + 1);
+      bottom.innerHTML = `
+        <button class="btn btn-outline btn-sm" onclick="backToOverview()">返回列表</button>
+        ${nextTut ? `<button class="btn btn-primary btn-sm" onclick="startTutorialPlayback('${nextTut.id}')">下一课 →</button>` : ''}
+        <button class="btn btn-accent btn-sm" onclick="skipAllTutorials()">去关卡列表</button>`;
+      const skipBtn = document.getElementById('btnTutSkip');
+      if (skipBtn) { skipBtn.textContent = '完成'; skipBtn.onclick = backToOverview; }
+    } else {
+      backToOverview();
+    }
+  };
+
+  tutPlayer.play();
+}
+
+// ---- Guided mode (interactive) ----
+function startGuidedMode(tutId) {
+  const script = TUTORIAL_SCRIPTS.find(t => t.id === tutId);
+  if (!script) return;
+
+  guideMode = 'guided';
+  guideCurrentTut = tutId;
+  sessionStorage.setItem('guideMode', 'guided');
+  sessionStorage.setItem('guideTutId', tutId);
+  document.getElementById('headerRight').innerHTML = '';
+
+  // Init guided state
+  guidedState = {
+    script: script,
+    chain: script.initialChain.map((c, i) => ({ color: c, id: i })),
+    queue: [...script.queue],
+    queueIdx: 0,
+    steps: [],     // array of {slot}
+    nextId: script.initialChain.length,
+    animating: false,
+    done: false,
+  };
+
+  const par = script.optimalSolution ? script.optimalSolution.length : '?';
+  const container = document.getElementById('guideContent');
+  container.innerHTML = `
+    <div class="tutorial-play">
+      <!-- Top bar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <button class="btn btn-outline btn-sm" onclick="backToOverview()">‹ 返回</button>
+        <span style="font-size:12px;font-weight:600;color:var(--gold-dim);">${script.name} · 自己操作</span>
+        <button class="btn btn-outline btn-sm" id="btnGuidedSkip">跳过 ›</button>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="guided-top" id="guidedTopBar">
+        <div class="gt-stat"><div class="gt-val" id="gtStep">0</div><div class="gt-label">步数</div></div>
+        <div class="gt-stat"><div class="gt-val" id="gtPar">${par}</div><div class="gt-label">目标Par</div></div>
+        <div class="gt-stat"><div class="gt-val" id="gtRemain">${script.initialChain.length}</div><div class="gt-label">剩余球</div></div>
+        <div class="gt-btns">
+          <button class="btn btn-accent btn-sm" id="btnShowOptimal">💡 最优解</button>
+          <button class="btn btn-outline btn-sm" id="btnGuidedReset">🔄 重置</button>
+        </div>
+      </div>
+
+      <!-- Card -->
+      <div class="teach-card">
+        <div class="ball-row" id="tutChainRow"></div>
+        <div class="teach-desc" id="guidedHint" style="min-height:20px;">点击球之间的缝隙来插入当前球</div>
+        <div class="teach-divider"></div>
+        <div class="teach-next-label">当前球</div>
+        <div class="teach-next-ball" id="tutNextBall"></div>
+        <div class="next-preview" id="tutNextPreview" style="margin-top:4px;">
+          <span style="font-size:10px;color:#8A7040;">即将到来</span>
+          <div id="tutPreviewBalls" style="display:flex;gap:6px;align-items:center;"></div>
+        </div>
+      </div>
+
+      <!-- Result (hidden initially) -->
+      <div class="guided-result" id="guidedResult" style="display:none;"></div>
+    </div>`;
+
+  document.getElementById('btnGuidedSkip').addEventListener('click', () => skipCurrentTutorial());
+  document.getElementById('btnGuidedReset').addEventListener('click', () => {
+    if (guidedState && !guidedState.animating) startGuidedMode(tutId);
+  });
+  document.getElementById('btnShowOptimal').addEventListener('click', () => showOptimalModal(script));
+
+  // Bind chain click
+  document.getElementById('tutChainRow').addEventListener('click', function(e) {
+    if (!guidedState || guidedState.animating || guidedState.done) return;
+    if (guidedState.queueIdx >= guidedState.queue.length) return;
+
+    const slot = e.target.closest('.insert-slot');
+    if (!slot) return;
+
+    const idx = parseInt(slot.dataset.index);
+    if (isNaN(idx) || idx < 0 || idx > guidedState.chain.length) return;
+
+    // Insert ball
+    const color = guidedState.queue[guidedState.queueIdx];
+    guidedState.steps.push({ slot: idx });
+    guidedState.chain.splice(idx, 0, { color, id: guidedState.nextId++ });
+    guidedState.queueIdx++;
+
+    renderGuidedChain();
+    updateGuidedStats();
+
+    // Check match
+    guidedState.animating = true;
+    guidedScheduleMatchCheck(idx);
+  });
+
+  renderGuidedChain();
+  updateGuidedStats();
+}
+
+function renderGuidedChain() {
+  const row = document.getElementById('tutChainRow');
+  if (!row || !guidedState) return;
+  row.innerHTML = '';
+
+  const renderSlot = (container, index) => {
+    const slot = document.createElement('div');
+    slot.className = 'insert-slot';
+    if (guidedState.done || guidedState.queueIdx >= guidedState.queue.length) {
+      slot.style.opacity = '0.3';
+    }
+    container.appendChild(slot);
+  };
+
+  renderSlot(row, 0);
+  guidedState.chain.forEach((ball, i) => {
+    const el = document.createElement('div');
+    el.className = 'ball';
+    el.dataset.index = i;
+    el.style.setProperty('--ball-color', COLOR_MAP[ball.color]);
+    el.style.backgroundColor = COLOR_MAP[ball.color];
+    row.appendChild(el);
+    renderSlot(row, i + 1);
+  });
+
+  // Current ball
+  const nextEl = document.getElementById('tutNextBall');
+  if (nextEl) {
+    if (guidedState.queueIdx < guidedState.queue.length && !guidedState.done) {
+      const color = guidedState.queue[guidedState.queueIdx];
+      nextEl.style.display = '';
+      nextEl.style.setProperty('--ball-color', COLOR_MAP[color]);
+      nextEl.style.backgroundColor = COLOR_MAP[color];
+      nextEl.style.color = COLOR_MAP[color];
+      nextEl.style.boxShadow = `0 0 28px ${COLOR_MAP[color]}, 0 0 48px ${COLOR_MAP[color]}`;
+    } else {
+      nextEl.style.display = 'none';
+    }
+  }
+
+  // Preview remaining queue balls (next-next)
+  const previewEl = document.getElementById('tutPreviewBalls');
+  const previewWrapper = document.getElementById('tutNextPreview');
+  if (previewEl && previewWrapper) {
+    previewEl.innerHTML = '';
+    let hasPreview = false;
+    for (let i = guidedState.queueIdx + 1; i < guidedState.queue.length; i++) {
+      if (guidedState.done) break;
+      hasPreview = true;
+      const dot = document.createElement('div');
+      dot.className = 'next-preview-ball';
+      dot.style.backgroundColor = COLOR_MAP[guidedState.queue[i]];
+      dot.title = guidedState.queue[i];
+      previewEl.appendChild(dot);
+    }
+    previewWrapper.style.display = hasPreview ? '' : 'none';
+  }
+}
+
+function updateGuidedStats() {
+  if (!guidedState) return;
+  document.getElementById('gtStep').textContent = guidedState.steps.length;
+  document.getElementById('gtRemain').textContent = guidedState.chain.length;
+}
+
+function guidedScheduleMatchCheck(checkIdx) {
+  if (!guidedState) return;
+  const match = findMatches(guidedState.chain, checkIdx);
+  if (!match) {
+    guidedState.animating = false;
+    renderGuidedChain();
+    updateGuidedStats();
+    checkGuidedDone();
+    return;
+  }
+
+  // Animate removal
+  const row = document.getElementById('tutChainRow');
+  if (row) {
+    for (let i = match.left; i <= match.right; i++) {
+      const ball = row.querySelector('.ball[data-index="' + i + '"]');
+      if (ball) ball.classList.add('removing');
+    }
+  }
+
+  setTimeout(() => {
+    if (!guidedState) return;
+    guidedState.chain.splice(match.left, match.right - match.left + 1);
+    renderGuidedChain();
+    updateGuidedStats();
+
+    const gapIdx = Math.min(match.left, guidedState.chain.length - 1);
+    if (guidedState.chain.length > 0 && gapIdx >= 0) {
+      setTimeout(() => guidedScheduleMatchCheck(gapIdx), 150);
+    } else {
+      guidedState.animating = false;
+      checkGuidedDone();
+    }
+  }, 300);
+}
+
+function checkGuidedDone() {
+  if (!guidedState || guidedState.done) return;
+  if (guidedState.chain.length === 0 || guidedState.queueIdx >= guidedState.queue.length) {
+    guidedState.done = true;
+    renderGuidedChain();
+    showGuidedResult();
+  }
+}
+
+function showGuidedResult() {
+  const resultEl = document.getElementById('guidedResult');
+  if (!resultEl || !guidedState) return;
+  resultEl.style.display = 'block';
+
+  const cleared = guidedState.chain.length === 0;
+  const steps = guidedState.steps.length;
+  const par = guidedState.script.optimalSolution ? guidedState.script.optimalSolution.length : '?';
+  const grade = cleared ? (steps <= par ? '⭐⭐⭐' : steps <= par * 2 ? '⭐⭐' : '⭐') : '💪';
+  const titleColor = cleared ? (steps <= par ? 'var(--amber)' : 'var(--green)') : 'var(--muted)';
+
+  resultEl.innerHTML = `
+    <div class="gr-title" style="color:${titleColor};">${cleared ? '🎉 完成！' : '继续加油'} ${grade}</div>
+    <div class="gr-stats">
+      <div class="gr-stat">
+        <div class="gr-val" style="color:${cleared ? (steps <= par ? 'var(--amber)' : 'var(--text)') : 'var(--muted)'};">${steps}</div>
+        <div class="gr-label">你的步数</div>
+      </div>
+      <div class="gr-stat">
+        <div class="gr-val" style="color:var(--gold);">${par}</div>
+        <div class="gr-label">最优步数</div>
+      </div>
+      <div class="gr-stat">
+        <div class="gr-val">${cleared ? '✓' : guidedState.chain.length}</div>
+        <div class="gr-label">${cleared ? '清空' : '剩余球'}</div>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:12px;">
+      <button class="btn btn-outline btn-sm" onclick="startGuidedMode('${guidedState.script.id}')">🔄 再来一次</button>
+      <button class="btn btn-primary btn-sm" onclick="backToOverview()">返回列表</button>
+    </div>
+  `;
+
+  if (cleared && steps <= par) {
+    markTutDone(guidedState.script.id, 'completed');
+  }
+
+  // Hide hint
+  const hint = document.getElementById('guidedHint');
+  if (hint) hint.textContent = cleared ? '全部清空！' : '球已用完';
+
+  // Show strategy summary for intermediate & advanced
+  if (cleared && guidedState.script.tier >= 2) {
+    const summarySteps = guidedState.script.steps.filter(s => s.type === 'summary');
+    if (summarySteps.length > 0) {
+      const s = summarySteps[0];
+      const pointsHTML = s.points.map(p => `<li style="margin-bottom:4px;">${p}</li>`).join('');
+      resultEl.innerHTML += `
+        <div style="margin-top:12px;text-align:left;background:rgba(255,208,96,0.04);border-radius:10px;padding:14px;border:1px solid rgba(255,208,96,0.1);">
+          <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:8px;text-align:center;">${s.title}</div>
+          <ol style="padding-left:16px;font-size:11px;color:var(--text);line-height:1.7;">${pointsHTML}</ol>
+          <div style="margin-top:8px;font-size:10px;color:var(--amber);text-align:center;">💡 ${s.tip}</div>
+        </div>`;
+    }
+  }
+}
+
+function showOptimalModal(script) {
+  let sol = script.optimalSolution;
+  // Trigger lazy BFS for advanced level
+  if (!sol && script.getOptimal) {
+    sol = script.getOptimal();
+  }
+  if (!sol || sol.length === 0) {
+    alert('暂无最优解数据，请尝试自己探索！');
+    return;
+  }
+  const stepsText = sol.map((s, i) => `第${i+1}步：插入位置 ${s.slot}`).join('<br>');
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'optModal';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <h3>💡 最优解</h3>
+      <p>最少 <strong>${sol.length}</strong> 步清空全部球</p>
+      <div style="text-align:left;font-size:13px;color:var(--text);line-height:2;margin:12px 0;padding:12px;background:rgba(0,0,0,0.2);border-radius:8px;">
+        ${stepsText}
+      </div>
+      <button class="modal-btn primary" id="optModalClose">知道了</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  document.getElementById('optModalClose').addEventListener('click', () => overlay.remove());
+}
+
+// ---- Shared helpers ----
+function skipCurrentTutorial() {
+  if (tutPlayer && tutPlayer.running) {
+    tutPlayer.skip();
+  } else if (guidedState && !guidedState.done) {
+    guidedState.done = true;
+    showGuidedResult();
+  } else {
+    backToOverview();
+  }
+}
+
+function backToOverview() {
+  if (tutPlayer) tutPlayer.stop();
+  tutPlayer = null;
+  guidedState = null;
+  renderTutorialOverview();
+}
+
+// ======================================================================
+// PAGE 2: LEVELS
+// ======================================================================
+function initLevels() {
+  document.getElementById('headerRight').innerHTML =
+    '<button class="nav-btn" onclick="router.navigate(\'#home\')">首页</button>' +
+    '<button class="nav-btn" style="margin-left:6px;" onclick="router.navigate(\'#guide\')">教学</button>';
+
+  const grid = document.getElementById('levelsGrid');
+  const progress = loadProgress();
+  const allDone = isAllCompleted();
+
+  let html = '';
+  ZUMA_LEVELS.forEach((lv, i) => {
+    const unlocked = isLevelUnlocked(lv.id);
+    const prog = progress[lv.id];
+    const stars = prog ? prog.stars : 0;
+    const cls = !unlocked ? 'locked' : (stars >= 3 ? 'completed' : '');
+
+    html += `<div class="level-card fade-in delay-${i % 4} ${cls}"
+      ${unlocked ? `onclick="startLevel(${lv.id})"` : ''}>
+      <div class="lc-num">#${lv.id}</div>
+      <div class="lc-name">${lv.name}</div>
+      <div class="lc-stars">${renderStars(stars)}</div>
+      <div class="lc-skills">${lv.skill_focus.map(s => `<span class="skill-tag">${s}</span>`).join('')}</div>
+      ${unlocked ? '' : '<div class="lc-lock">🔒</div>'}
+    </div>`;
+  });
+
+  // Graduation entry
+  if (allDone) {
+    html += `<div class="level-card fade-in" onclick="router.navigate('#graduation')"
+      style="border-color:rgba(255,179,71,0.5);background:rgba(255,179,71,0.06);">
+      <div class="lc-num" style="font-size:28px;">🎓</div>
+      <div class="lc-name">毕业典礼</div>
+      <div class="lc-skills"><span class="skill-tag">全部通关!</span></div>
+    </div>`;
+  }
+
+  // Placeholder locked cards (for visual) up to 24 or at least fill the row
+  const placeholders = Math.max(0, 24 - ZUMA_LEVELS.length);
+  for (let i = 0; i < placeholders; i++) {
+    const n = ZUMA_LEVELS.length + i + 1;
+    html += `<div class="level-card locked fade-in delay-${(ZUMA_LEVELS.length + i) % 4}">
+      <div class="lc-num">#${n}</div>
+      <div class="lc-name">敬请期待</div>
+      <div class="lc-lock">🔒</div>
+    </div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function renderStars(count) {
+  let s = '';
+  for (let i = 0; i < 3; i++) {
+    s += `<span class="star${i < count ? ' filled' : ''}">★</span>`;
+  }
+  return s;
+}
+
+// ======================================================================
+// PAGE 3: GAME
+// ======================================================================
+let gameState = null; // { level, chain[], queue[], queueIdx, steps, comboChain, animating, selectedSlot, allCleared }
+
+function startLevel(id) {
+  sessionStorage.setItem('currentLevelId', id);
+  router.navigate('#game');
+}
+
+function retryLevel() {
+  // Re-init with same level
+  initGame();
+}
+
+function finishLevel() {
+  if (!gameState) return;
+  const gs = gameState;
+  sessionStorage.setItem('gameResult', JSON.stringify({
+    levelId: gs.level.id,
+    steps: gs.steps,
+    par: gs.level.par,
+    allCleared: gs.allCleared,
+    totalCombos: gs.totalCombos,
+    maxChain: gs.maxChain
+  }));
+  router.navigate('#result');
+}
+
+function initGame() {
+  const idStr = sessionStorage.getItem('currentLevelId');
+  const id = idStr ? parseInt(idStr) : 1;
+  const level = getLevel(id);
+  if (!level) { router.navigate('#levels'); return; }
+
+  document.getElementById('headerRight').innerHTML = '';
+
+  // Reset game state
+  gameState = {
+    level: level,
+    chain: level.chain_spec.map((c, i) => ({ color: c, id: i })),
+    nextId: level.chain_spec.length,
+    queue: [...level.queue_spec],
+    queueIdx: 0,
+    steps: 0,
+    comboChain: 0,
+    totalCombos: 0,
+    maxChain: 0,
+    animating: false,
+    selectedSlot: 0,
+    allCleared: false,
+    levelEnded: false
+  };
+
+  // Clamp selectedSlot
+  gameState.selectedSlot = 0;
+
+  // Update UI
+  document.getElementById('levelEndPanel').style.display = 'none';
+  document.getElementById('hintBar').textContent = level.tutorial_hint || '';
+  updateGameStats();
+  renderQueue();
+  renderChain();
+}
+
+function updateGameStats() {
+  const gs = gameState;
+  if (!gs) return;
+  document.getElementById('gStatStep').textContent = gs.steps;
+  document.getElementById('gStatCombo').textContent = gs.comboChain;
+  document.getElementById('gStatRemain').textContent = gs.chain.length;
+  document.getElementById('gStatPar').textContent = gs.level.par;
+}
+
+function renderQueue() {
+  const gs = gameState;
+  if (!gs) return;
+
+  const queueNext = document.getElementById('queueNext');
+  const queueRemaining = document.getElementById('queueRemaining');
+
+  if (gs.queueIdx >= gs.queue.length) {
+    // Queue exhausted
+    queueNext.style.backgroundColor = '#555';
+    queueNext.style.boxShadow = 'none';
+    queueNext.style.animation = 'none';
+    queueRemaining.innerHTML = '<span style="font-size:11px;color:var(--muted);">(已用完)</span>';
+    document.getElementById('queueBar').style.opacity = '0.6';
+    return;
+  }
+
+  document.getElementById('queueBar').style.opacity = '1';
+  const currentColor = gs.queue[gs.queueIdx];
+  queueNext.style.setProperty('--ball-color', COLOR_MAP[currentColor]);
+  queueNext.style.backgroundColor = COLOR_MAP[currentColor];
+  queueNext.style.color = COLOR_MAP[currentColor];
+  queueNext.style.boxShadow = `0 0 16px ${COLOR_MAP[currentColor]}`;
+  queueNext.style.animation = 'pulse-glow 1.2s ease-in-out infinite';
+
+  // Remaining queue balls
+  let dots = '';
+  for (let i = gs.queueIdx + 1; i < gs.queue.length; i++) {
+    dots += `<div class="qr-dot" style="--ball-color:${COLOR_MAP[gs.queue[i]]};background-color:${COLOR_MAP[gs.queue[i]]};"></div>`;
+  }
+  queueRemaining.innerHTML = dots || '<span style="font-size:11px;color:var(--muted);">最后</span>';
+}
+
+function renderChain() {
+  const gs = gameState;
+  if (!gs) return;
+
+  const row = document.getElementById('chainRow');
+  row.innerHTML = '';
+
+  gs.selectedSlot = Math.min(gs.selectedSlot, gs.chain.length);
+
+  const BALLS_PER_ROW = 5;
+  const totalRows = Math.ceil((gs.chain.length + 1) / BALLS_PER_ROW);
+
+  for (let r = 0; r < totalRows; r++) {
+    const startIdx = r * BALLS_PER_ROW;
+    const endIdx = Math.min(startIdx + BALLS_PER_ROW, gs.chain.length);
+    const isReverse = (r % 2 === 1); // even rows: right→left
+
+    // Connector between rows
+    if (r > 0) {
+      const conn = document.createElement('div');
+      conn.className = 'chain-connector';
+      row.appendChild(conn);
+    }
+
+    const subrow = document.createElement('div');
+    subrow.className = 'chain-subrow' + (isReverse ? ' reverse' : '');
+
+    if (isReverse) {
+      // Right-to-left: slot[endIdx], ball[endIdx-1], slot[endIdx-1], ..., ball[startIdx], slot[startIdx]
+      renderInsertSlot(subrow, endIdx);
+      for (let i = endIdx - 1; i >= startIdx; i--) {
+        const el = document.createElement('div');
+        el.className = 'ball';
+        el.dataset.index = i;
+        el.style.setProperty('--ball-color', COLOR_MAP[gs.chain[i].color]);
+        el.style.backgroundColor = COLOR_MAP[gs.chain[i].color];
+        el.textContent = gs.chain[i].color.charAt(0).toUpperCase();
+        subrow.appendChild(el);
+        renderInsertSlot(subrow, i);
+      }
+    } else {
+      // Left-to-right: slot[startIdx], ball[startIdx], slot[startIdx+1], ...
+      renderInsertSlot(subrow, startIdx);
+      for (let i = startIdx; i < endIdx; i++) {
+        const el = document.createElement('div');
+        el.className = 'ball';
+        el.dataset.index = i;
+        el.style.setProperty('--ball-color', COLOR_MAP[gs.chain[i].color]);
+        el.style.backgroundColor = COLOR_MAP[gs.chain[i].color];
+        el.textContent = gs.chain[i].color.charAt(0).toUpperCase();
+        subrow.appendChild(el);
+        renderInsertSlot(subrow, i + 1);
+      }
+    }
+
+    row.appendChild(subrow);
+  }
+
+  updateGameStats();
+  updateSlotHint();
+}
+
+function renderInsertSlot(container, index) {
+  const gs = gameState;
+  const slot = document.createElement('div');
+  slot.className = 'insert-slot';
+  slot.dataset.index = index;
+  if (index === gs.selectedSlot) slot.classList.add('selected');
+
+  const label = document.createElement('span');
+  label.className = 'slot-idx';
+  label.textContent = index;
+  slot.appendChild(label);
+
+  container.appendChild(slot);
+}
+
+/** Double-click/tap on a slot triggers insertion */
+function updateSlotHint() {
+  const gs = gameState;
+  if (!gs) return;
+  const hint = document.getElementById('hintBar');
+  if (gs.chain.length === 0) {
+    hint.textContent = '';
+    return;
+  }
+  if (gs.queueIdx >= gs.queue.length && !gs.levelEnded) {
+    hint.textContent = '球已用完！点击下方按钮查看结果';
+  }
+}
+
+// Click on insertion slot = insert immediately (one-click)
+document.getElementById('chainRow').addEventListener('click', function(e) {
+  const gs = gameState;
+  if (!gs || gs.animating || gs.levelEnded) return;
+  if (gs.queueIdx >= gs.queue.length) return;
+
+  const slot = e.target.closest('.insert-slot');
+  if (!slot) return;
+
+  const idx = parseInt(slot.dataset.index);
+  if (isNaN(idx) || idx < 0 || idx > gs.chain.length) return;
+
+  // Insert immediately at this slot
+  const color = gs.queue[gs.queueIdx];
+  gs.selectedSlot = idx;
+  gs.steps++;
+  gs.comboChain = 0;
+  gs.chain.splice(idx, 0, { color, id: gs.nextId++ });
+  gs.queueIdx++;
+
+  renderChain();
+  renderQueue();
+
+  // Trigger match detection
+  scheduleMatchCheck(idx);
+
+  // Advance selectedSlot past the newly inserted ball
+  gs.selectedSlot = Math.min(idx + 1, gs.chain.length);
+});
+
+// ---- Match detection ----
+function findMatches(arr, startIdx) {
+  if (startIdx < 0 || startIdx >= arr.length) return null;
+  const color = arr[startIdx].color;
+  let left = startIdx;
+  while (left > 0 && arr[left - 1].color === color) left--;
+  let right = startIdx;
+  while (right < arr.length - 1 && arr[right + 1].color === color) right++;
+  const count = right - left + 1;
+  return count >= 3 ? { left, right, count } : null;
+}
+
+function scheduleMatchCheck(checkIdx) {
+  const gs = gameState;
+  if (!gs) return;
+
+  const match = findMatches(gs.chain, checkIdx);
+  if (!match) {
+    gs.selectedSlot = Math.min(gs.selectedSlot, gs.chain.length);
+    gs.animating = false;
+    renderChain();
+    renderQueue();
+    updateGameStats();
+
+    // Level end conditions
+    checkLevelEnd();
+    return;
+  }
+
+  gs.animating = true;
+  gs.comboChain++;
+  gs.totalCombos++;
+  if (gs.comboChain > gs.maxChain) gs.maxChain = gs.comboChain;
+
+  // Update combo display during animation
+  updateGameStats();
+
+  // Animate removal
+  animateRemoval(match, () => {
+    // Remove
+    gs.chain.splice(match.left, match.right - match.left + 1);
+    renderChain();
+    renderQueue();
+
+    // Chain reaction check at gap
+    const gapIdx = Math.min(match.left, gs.chain.length - 1);
+
+    if (gs.chain.length === 0) {
+      gs.allCleared = true;
+      gs.animating = false;
+      gs.levelEnded = true;
+      updateGameStats();
+      showLevelEnd();
+    } else if (gapIdx >= 0) {
+      setTimeout(() => scheduleMatchCheck(gapIdx), 120);
+    } else {
+      gs.selectedSlot = Math.min(gs.selectedSlot, gs.chain.length);
+      gs.animating = false;
+      renderChain();
+      renderQueue();
+      updateGameStats();
+    }
+  });
+}
+
+function animateRemoval(match, callback) {
+  const row = document.getElementById('chainRow');
+  for (let i = match.left; i <= match.right; i++) {
+    const ball = row.querySelector('.ball[data-index="' + i + '"]');
+    if (ball) ball.classList.add('removing');
+  }
+  setTimeout(callback, 300);
+}
+
+function checkLevelEnd() {
+  const gs = gameState;
+  if (gs.levelEnded) return;
+  if (gs.allCleared) {
+    gs.levelEnded = true;
+    showLevelEnd();
+  } else if (gs.queueIdx >= gs.queue.length && !gs.animating) {
+    // Queue exhausted, chain not empty
+    gs.levelEnded = true;
+    showLevelEnd();
+  }
+}
+
+function showLevelEnd() {
+  const gs = gameState;
+  document.getElementById('levelEndPanel').style.display = 'block';
+  const msg = document.getElementById('levelEndMsg');
+  if (gs.allCleared) {
+    const par = gs.level.par;
+    if (gs.steps <= par) {
+      msg.innerHTML = `🎉 完美通关！<br><span style="font-size:14px;color:var(--accent);">${gs.steps}步 / Par ${par} → ⭐⭐⭐</span>`;
+    } else if (gs.steps <= par * 2) {
+      msg.innerHTML = `✅ 顺利通关！<br><span style="font-size:14px;color:var(--muted);">${gs.steps}步 / Par ${par} → ⭐⭐</span>`;
+    } else {
+      msg.innerHTML = `✅ 完成！<br><span style="font-size:14px;color:var(--muted);">${gs.steps}步 / Par ${par} → ⭐</span>`;
+    }
+  } else {
+    msg.innerHTML = `⏰ 球已用完<br><span style="font-size:14px;color:var(--muted);">还剩 ${gs.chain.length} 颗球未消除</span>`;
+  }
+
+  document.getElementById('hintBar').textContent = '';
+  updateGameStats();
+
+  // Save progress
+  updateLevelProgress(gs.level.id, gs.steps, gs.allCleared);
+}
+
+// ======================================================================
+// PAGE 4: RESULT
+// ======================================================================
+function initResult() {
+  document.getElementById('headerRight').innerHTML =
+    '<button class="nav-btn" onclick="router.navigate(\'#levels\')">关卡列表 →</button>';
+
+  const raw = sessionStorage.getItem('gameResult');
+  if (!raw) {
+    document.getElementById('resultCard').innerHTML =
+      '<p style="color:var(--muted);">没有游戏数据</p>';
+    return;
+  }
+
+  const r = JSON.parse(raw);
+  const level = getLevel(r.levelId);
+  if (!level) {
+    document.getElementById('resultCard').innerHTML =
+      '<p style="color:var(--muted);">关卡数据未找到</p>';
+    return;
+  }
+
+  const stars = r.allCleared ? (r.steps <= r.par ? 3 : r.steps <= r.par * 2 ? 2 : 1) : 0;
+  const gradeText = stars === 3 ? '完美通关!' : stars === 2 ? '优秀!' : stars === 1 ? '通关' : '继续加油';
+  const gradeColor = stars === 3 ? 'var(--accent)' : stars >= 1 ? 'var(--green)' : 'var(--muted)';
+
+  const hasNext = isLevelUnlocked(r.levelId + 1) || (r.allCleared && r.levelId < ZUMA_LEVELS.length);
+
+  document.getElementById('resultCard').innerHTML = `
+    <div class="result-stars fade-in">${renderStars(stars)}</div>
+    <div class="result-grade fade-in delay-1" style="color:${gradeColor};">${gradeText}</div>
+    <div style="font-size:14px;color:var(--muted);" class="fade-in delay-1">
+      关卡 ${r.levelId} · ${level.name}
+    </div>
+    <div class="result-stats fade-in delay-2">
+      <div class="result-stat ${r.steps <= r.par ? 'great' : 'good'}">
+        <div class="rs-val">${r.steps}</div>
+        <div class="rs-label">使用步数 (Par: ${r.par})</div>
+      </div>
+      <div class="result-stat ${r.allCleared ? 'great' : ''}">
+        <div class="rs-val">${r.allCleared ? '✓' : '✗'}</div>
+        <div class="rs-label">全部清除</div>
+      </div>
+      <div class="result-stat ${r.maxChain >= 2 ? 'great' : ''}">
+        <div class="rs-val">${r.maxChain}</div>
+        <div class="rs-label">最大连锁</div>
+      </div>
+      <div class="result-stat">
+        <div class="rs-val">${r.totalCombos}</div>
+        <div class="rs-label">总消除次数</div>
+      </div>
+    </div>
+    <div class="result-skills fade-in delay-2">
+      <span style="font-size:12px;color:var(--muted);">技能标签:</span>
+      ${level.skill_focus.map(s => `<span class="skill-tag">${s}</span>`).join('')}
+    </div>
+    <div class="btn-row fade-in delay-3">
+      <button class="btn btn-outline" onclick="retryLevelFromResult()">🔄 再来一次</button>
+      ${hasNext ? `<button class="btn btn-primary" onclick="nextLevel(${r.levelId})">下一关 →</button>` : ''}
+      <button class="btn btn-outline btn-sm" onclick="router.navigate('#levels')">📋 关卡列表</button>
+    </div>
+  `;
+}
+
+function retryLevelFromResult() {
+  const raw = sessionStorage.getItem('gameResult');
+  if (raw) {
+    const r = JSON.parse(raw);
+    sessionStorage.setItem('currentLevelId', r.levelId);
+    router.navigate('#game');
+  }
+}
+
+function nextLevel(currentId) {
+  const nextId = currentId + 1;
+  if (getLevel(nextId) || isLevelUnlocked(nextId)) {
+    sessionStorage.setItem('currentLevelId', nextId);
+    router.navigate('#game');
+  } else {
+    router.navigate('#levels');
+  }
+}
+
+// ======================================================================
+// PAGE 5: GRADUATION
+// ======================================================================
+function initGraduation() {
+  if (!isAllCompleted()) {
+    router.navigate('#levels');
+    return;
+  }
+
+  document.getElementById('headerRight').innerHTML = '';
+
+  const progress = loadProgress();
+  let totalStars = 0;
+  let totalSteps = 0;
+  ZUMA_LEVELS.forEach(lv => {
+    const p = progress[lv.id];
+    if (p) {
+      totalStars += p.stars || 0;
+      totalSteps += p.bestSteps || 0;
+    }
+  });
+
+  const maxStars = ZUMA_LEVELS.length * 3;
+
+  document.getElementById('gradContent').innerHTML = `
+    <div class="grad-icon fade-in">🎓</div>
+    <div class="grad-title fade-in delay-1">恭喜毕业！</div>
+    <p style="color:var(--muted);max-width:320px;line-height:1.6;" class="fade-in delay-1">
+      你已完成全部 <strong>${ZUMA_LEVELS.length}</strong> 关祖玛训练，<br>
+      掌握了三消的核心技巧！
+    </p>
+    <div class="grad-stats fade-in delay-2">
+      <div class="grad-stat">
+        <div class="gs-val">${totalStars}/${maxStars}</div>
+        <div class="gs-label">累计星星</div>
+      </div>
+      <div class="grad-stat">
+        <div class="gs-val">${totalSteps}</div>
+        <div class="gs-label">累计步数</div>
+      </div>
+      <div class="grad-stat">
+        <div class="gs-val">${countCompletedLevels()}</div>
+        <div class="gs-label">通关关卡</div>
+      </div>
+    </div>
+    <div class="btn-row fade-in delay-3">
+      <button class="btn btn-accent" onclick="resetAllProgress()">🔄 重置进度</button>
+      <button class="btn btn-outline" onclick="router.navigate('#levels')">📋 返回关卡</button>
+    </div>
+  `;
+}
+
+function resetAllProgress() {
+  if (confirm('确定要清除所有关卡进度吗？此操作不可撤销。')) {
+    localStorage.removeItem(STORAGE_KEY);
+    router.navigate('#levels');
+  }
+}
+
+// ======================================================================
+// BOOTSTRAP
+// ======================================================================
+(function boot() {
+  // Pre-verify BFS for intermediate (async, doesn't block page)
+  setTimeout(() => {
+    if (TUTORIAL_SCRIPTS[1] && TUTORIAL_SCRIPTS[1].getOptimal) {
+      console.log('Verifying: 中阶教学');
+      TUTORIAL_SCRIPTS[1].getOptimal();
+    }
+  }, 500);
+
+  // Determine initial page
+  const hash = window.location.hash;
+  if (hash) {
+    router.navigate(hash);
+  } else {
+    router.navigate('#home');
+  }
+})();
+</script>
+</body>
+</html>
