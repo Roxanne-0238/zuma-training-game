@@ -710,6 +710,7 @@ body::after {
       </div>
       <div class="home-subtitle">掌握三消技巧<br>从零成为祖玛高手</div>
       <button class="home-start-btn" id="btnStart">开始游戏</button>
+      <button class="home-start-btn" style="margin-top:12px;border-color:rgba(255,208,96,0.25);font-size:14px;padding:10px 36px;" onclick="router.navigate('#guide')">📖 教学训练</button>
       <div class="home-footer">ZUMA TRAINER</div>
     </div>
   </div>
@@ -906,9 +907,7 @@ window.addEventListener('hashchange', () => {
 // PAGE 0: HOME
 // ======================================================================
 function initHome() {
-  document.getElementById('headerRight').innerHTML =
-    '<button class="nav-btn" onclick="router.navigate(\'#guide\')">教学</button>' +
-    '<button class="nav-btn" style="margin-left:6px;" onclick="router.navigate(\'#levels\')">关卡 →</button>';
+  document.getElementById('headerRight').innerHTML = '';
 }
 
 document.getElementById('btnStart').addEventListener('click', () => {
@@ -1887,6 +1886,7 @@ function showGuidedResult() {
   if (hint) hint.textContent = cleared ? '全部清空！' : '球已用完';
 
   // Show strategy summary for intermediate & advanced
+  // Strategy summary for intermediate & advanced
   if (cleared && guidedState.script.tier >= 2) {
     const summarySteps = guidedState.script.steps.filter(s => s.type === 'summary');
     if (summarySteps.length > 0) {
@@ -1899,6 +1899,23 @@ function showGuidedResult() {
           <div style="margin-top:8px;font-size:10px;color:var(--amber);text-align:center;">💡 ${s.tip}</div>
         </div>`;
     }
+  }
+
+  // CTA card to next tutorial or levels
+  if (cleared) {
+    const nextTut = TUTORIAL_SCRIPTS.find(t => t.tier === guidedState.script.tier + 1);
+    const ctaTitle = nextTut ? `👉 ${nextTut.icon} 下一步：${nextTut.name}` : '🏆 全部完成！';
+    const ctaText = nextTut ? nextTut.subtitle : '你已经完成全部教学训练，<br>现在去闯关实战吧！';
+    const ctaAction = nextTut
+      ? `startGuidedMode('${nextTut.id}')`
+      : `router.navigate('#levels')`;
+    const ctaLabel = nextTut ? `进入${nextTut.name} →` : '🎮 开始闯关 →';
+    resultEl.innerHTML += `
+      <div class="cta-card" style="margin-top:12px;">
+        <div class="cta-title">${ctaTitle}</div>
+        <div class="cta-desc">${ctaText}</div>
+        <button class="btn btn-accent" onclick="${ctaAction}" style="width:100%;justify-content:center;padding:10px;font-size:13px;">${ctaLabel}</button>
+      </div>`;
   }
 }
 
@@ -1954,8 +1971,7 @@ function backToOverview() {
 // ======================================================================
 function initLevels() {
   document.getElementById('headerRight').innerHTML =
-    '<button class="nav-btn" onclick="router.navigate(\'#home\')">首页</button>' +
-    '<button class="nav-btn" style="margin-left:6px;" onclick="router.navigate(\'#guide\')">教学</button>';
+    '<button class="nav-btn" onclick="router.navigate(\'#home\')">首页</button>';
 
   const grid = document.getElementById('levelsGrid');
   const progress = loadProgress();
