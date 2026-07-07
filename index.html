@@ -736,12 +736,9 @@ body::after {
       <div class="chain-row" id="chainRow"></div>
     </div>
 
-    <!-- Level end panel (overlay) -->
-    <div id="levelEndPanel" style="display:none; text-align:center; padding:12px 0;">
-      <div style="font-size:20px;font-weight:700;margin-bottom:12px;" id="levelEndMsg"></div>
-      <div class="btn-row">
-        <button class="btn btn-outline btn-sm" onclick="retryLevel()">🔄 再来一次</button>
-        <button class="btn btn-primary btn-sm" onclick="finishLevel()">📊 查看结果</button>
+    <!-- Level end overlay card -->
+    <div id="levelEndOverlay" style="display:none; position:fixed; inset:0; z-index:50; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+      <div id="levelEndCard" style="background:var(--surface2); border:1px solid rgba(255,208,96,0.2); border-radius:16px; padding:24px 20px; max-width:320px; width:90%; text-align:center; box-shadow:0 8px 40px rgba(0,0,0,0.6);">
       </div>
     </div>
   </div>
@@ -762,7 +759,7 @@ body::after {
 </div>
 
 <!-- Level data -->
-<script src="levels.js?v=3"></script>
+<script src="levels.js?v=4"></script>
 
 <!-- ================================================================== -->
 <!-- APPLICATION LOGIC                                                   -->
@@ -1948,7 +1945,7 @@ function initGame() {
   gameState.selectedSlot = 0;
 
   // Update UI
-  document.getElementById('levelEndPanel').style.display = 'none';
+  document.getElementById('levelEndOverlay').style.display = 'none';
   document.getElementById('hintBar').textContent = level.tutorial_hint || '';
   updateGameStats();
   renderQueue();
@@ -2207,26 +2204,56 @@ function checkLevelEnd() {
 
 function showLevelEnd() {
   const gs = gameState;
-  document.getElementById('levelEndPanel').style.display = 'block';
-  const msg = document.getElementById('levelEndMsg');
-  if (gs.allCleared) {
-    const par = gs.level.par;
-    if (gs.steps <= par) {
-      msg.innerHTML = `🎉 完美通关！<br><span style="font-size:14px;color:var(--accent);">${gs.steps}步 / Par ${par} → ⭐⭐⭐</span>`;
-    } else if (gs.steps <= par * 2) {
-      msg.innerHTML = `✅ 顺利通关！<br><span style="font-size:14px;color:var(--muted);">${gs.steps}步 / Par ${par} → ⭐⭐</span>`;
-    } else {
-      msg.innerHTML = `✅ 完成！<br><span style="font-size:14px;color:var(--muted);">${gs.steps}步 / Par ${par} → ⭐</span>`;
-    }
-  } else {
-    msg.innerHTML = `⏰ 球已用完<br><span style="font-size:14px;color:var(--muted);">还剩 ${gs.chain.length} 颗球未消除</span>`;
+  const overlay = document.getElementById('levelEndOverlay');
+  const card = document.getElementById('levelEndCard');
+  const level = gs.level;
+  const stars = gs.allCleared ? (gs.steps <= level.par ? 3 : gs.steps <= level.par * 2 ? 2 : 1) : 0;
+  const hasNext = gs.allCleared && isLevelUnlocked(level.id + 1) && getLevel(level.id + 1);
+
+  let starsHTML = '';
+  for (let i = 0; i < 3; i++) {
+    starsHTML += `<span style="font-size:32px;${i < stars ? 'color:var(--gold);text-shadow:0 0 12px rgba(255,208,96,0.5);' : 'color:#3a3025;'}">★</span>`;
   }
 
+  const titleText = stars === 3 ? '🎉 完美通关！' : stars >= 1 ? '✅ 顺利通关！' : '💪 继续加油';
+  const titleColor = stars === 3 ? 'var(--amber)' : stars >= 1 ? 'var(--green)' : 'var(--muted)';
+
+  card.innerHTML = `
+    <div style="font-size:22px;font-weight:700;color:${titleColor};margin-bottom:4px;">${titleText}</div>
+    <div style="margin-bottom:12px;">${starsHTML}</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">
+      关卡 ${level.id} · ${level.name}
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-bottom:14px;flex-wrap:wrap;">
+      <div style="background:var(--surface3);padding:8px 14px;border-radius:8px;text-align:center;min-width:50px;">
+        <div style="font-size:20px;font-weight:700;color:${gs.steps <= level.par ? 'var(--amber)' : 'var(--text)'};">${gs.steps}</div>
+        <div style="font-size:9px;color:var(--muted);">步数 / Par ${level.par}</div>
+      </div>
+      <div style="background:var(--surface3);padding:8px 14px;border-radius:8px;text-align:center;min-width:50px;">
+        <div style="font-size:20px;font-weight:700;color:${gs.maxChain >= 2 ? 'var(--yellow)' : 'var(--text)'};">${gs.maxChain}</div>
+        <div style="font-size:9px;color:var(--muted);">最大连锁</div>
+      </div>
+      <div style="background:var(--surface3);padding:8px 14px;border-radius:8px;text-align:center;min-width:50px;">
+        <div style="font-size:20px;font-weight:700;">${gs.totalCombos}</div>
+        <div style="font-size:9px;color:var(--muted);">消除次数</div>
+      </div>
+    </div>
+    ${level.strategy_tip ? `<div style="background:rgba(255,208,96,0.06);border:1px solid rgba(255,208,96,0.12);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--gold-dim);line-height:1.6;">💡 ${level.strategy_tip}</div>` : ''}
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${hasNext ? `<button class="btn btn-accent" onclick="closeLevelEnd(); startLevel(${level.id + 1})" style="width:100%;justify-content:center;padding:12px;font-size:14px;">下一关 →</button>` : ''}
+      <button class="btn btn-outline" onclick="closeLevelEnd(); retryLevel()" style="width:100%;justify-content:center;">🔄 再试一次</button>
+      <button class="btn btn-outline btn-sm" onclick="closeLevelEnd(); router.navigate('#levels')" style="width:100%;justify-content:center;">✕ 退出</button>
+    </div>
+  `;
+
+  overlay.style.display = 'flex';
   document.getElementById('hintBar').textContent = '';
   updateGameStats();
+  updateLevelProgress(level.id, gs.steps, gs.allCleared);
+}
 
-  // Save progress
-  updateLevelProgress(gs.level.id, gs.steps, gs.allCleared);
+function closeLevelEnd() {
+  document.getElementById('levelEndOverlay').style.display = 'none';
 }
 
 // ======================================================================
