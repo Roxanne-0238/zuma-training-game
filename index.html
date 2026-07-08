@@ -440,6 +440,63 @@ body::after {
   background: none; border: none; cursor: pointer; font-family: inherit;
 }
 
+/* ---- Advanced graduation overlay ---- */
+.adv-grad-overlay {
+  position: fixed; inset: 0; z-index: 120;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn 250ms ease;
+  padding: 24px;
+}
+.adv-grad-card {
+  background: linear-gradient(180deg, #2d2010 0%, #1A1208 100%);
+  border: 1.5px solid rgba(255,208,96,0.25);
+  border-radius: 20px;
+  padding: 32px 24px 28px;
+  max-width: 320px; width: 100%;
+  text-align: center;
+  box-shadow:
+    0 8px 48px rgba(0,0,0,0.7),
+    0 0 60px rgba(255,179,71,0.10),
+    inset 0 1px 0 rgba(255,255,255,0.03);
+  animation: fadeInUp 400ms ease both;
+  animation-delay: 100ms;
+}
+.adv-grad-card .ag-icon {
+  font-size: 64px; margin-bottom: 12px;
+  animation: bounce 0.8s ease infinite;
+}
+.adv-grad-card .ag-title {
+  font-size: 22px; font-weight: 800; color: var(--gold);
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+  text-shadow: 0 0 20px rgba(255,208,96,0.2);
+}
+.adv-grad-card .ag-desc {
+  font-size: 13px; color: var(--muted); line-height: 1.7;
+  margin-bottom: 20px;
+}
+.adv-grad-card .ag-stars {
+  font-size: 32px; letter-spacing: 4px; margin-bottom: 16px;
+  color: var(--gold);
+  text-shadow: 0 0 10px rgba(255,208,96,0.3);
+}
+.adv-grad-card .ag-btn {
+  display: block; width: 100%;
+  padding: 14px 20px; border-radius: 16px;
+  font-size: 17px; font-weight: 700; cursor: pointer;
+  font-family: var(--font); letter-spacing: 1px;
+  background: linear-gradient(180deg, rgba(255,179,71,0.25) 0%, rgba(180,130,40,0.25) 100%);
+  border: 2px solid var(--amber);
+  color: var(--amber);
+  box-shadow: 0 0 20px rgba(255,179,71,0.18);
+  transition: all 200ms;
+}
+.adv-grad-card .ag-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 0 32px rgba(255,179,71,0.3);
+}
+
 /* ---- Guided mode top bar ---- */
 .guided-top {
   display: flex; align-items: center; justify-content: space-between;
@@ -930,6 +987,10 @@ const router = {
   navigate(hash) {
     const pageName = (hash || '#home').replace('#', '').split('/')[0];
     this._current = pageName;
+
+    // Clean up any lingering overlays
+    closeAdvancedGraduation();
+    closeModal();
 
     // Hide all pages
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1963,19 +2024,60 @@ function showGuidedResult() {
   // CTA card to next tutorial or levels
   if (cleared) {
     const nextTut = TUTORIAL_SCRIPTS.find(t => t.tier === guidedState.script.tier + 1);
-    const ctaTitle = nextTut ? `👉 ${nextTut.icon} 下一步：${nextTut.name}` : '🏆 全部完成！';
-    const ctaText = nextTut ? nextTut.subtitle : '你已经完成全部教学训练，<br>现在去闯关实战吧！';
-    const ctaAction = nextTut
-      ? `startGuidedMode('${nextTut.id}')`
-      : `router.navigate('#levels')`;
-    const ctaLabel = nextTut ? `进入${nextTut.name} →` : '🎮 开始闯关 →';
-    resultEl.innerHTML += `
-      <div class="cta-card" style="margin-top:12px;">
-        <div class="cta-title">${ctaTitle}</div>
-        <div class="cta-desc">${ctaText}</div>
-        <button class="btn btn-accent" onclick="${ctaAction}" style="width:100%;justify-content:center;padding:10px;font-size:13px;">${ctaLabel}</button>
-      </div>`;
+
+    // Advanced (tier 3): show dedicated overlay instead of inline CTA
+    if (guidedState.script.tier >= 3) {
+      setTimeout(() => showAdvancedGraduationOverlay(), 400);
+    } else {
+      const ctaTitle = nextTut ? `👉 ${nextTut.icon} 下一步：${nextTut.name}` : '🏆 全部完成！';
+      const ctaText = nextTut ? nextTut.subtitle : '你已经完成全部教学训练，<br>现在去闯关实战吧！';
+      const ctaAction = nextTut
+        ? `startGuidedMode('${nextTut.id}')`
+        : `router.navigate('#levels')`;
+      const ctaLabel = nextTut ? `进入${nextTut.name} →` : '🎮 开始闯关 →';
+      resultEl.innerHTML += `
+        <div class="cta-card" style="margin-top:12px;">
+          <div class="cta-title">${ctaTitle}</div>
+          <div class="cta-desc">${ctaText}</div>
+          <button class="btn btn-accent" onclick="${ctaAction}" style="width:100%;justify-content:center;padding:10px;font-size:13px;">${ctaLabel}</button>
+        </div>`;
+    }
   }
+}
+
+function showAdvancedGraduationOverlay() {
+  const overlay = document.createElement('div');
+  overlay.className = 'adv-grad-overlay';
+  overlay.id = 'advGradOverlay';
+  overlay.innerHTML = `
+    <div class="adv-grad-card">
+      <div class="ag-icon">🏆</div>
+      <div class="ag-stars">★★★</div>
+      <div class="ag-title">你已经准备好了！</div>
+      <div class="ag-desc">
+        从三消入门到六级多米诺，<br>
+        核心穿插法已经在你手中。<br>
+        现在去闯关，征服所有挑战！
+      </div>
+      <button class="ag-btn" id="btnAdvGradGo">🎮 开始闯关 →</button>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) {
+      closeAdvancedGraduation();
+    }
+  });
+  document.getElementById('btnAdvGradGo').addEventListener('click', function() {
+    closeAdvancedGraduation();
+    router.navigate('#levels');
+  });
+}
+
+function closeAdvancedGraduation() {
+  const overlay = document.getElementById('advGradOverlay');
+  if (overlay) overlay.remove();
 }
 
 function showOptimalModal(script) {
