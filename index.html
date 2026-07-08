@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>祖玛训练 · Zuma Trainer</title>
 <style>
 /* ================================================================== */
@@ -43,8 +43,12 @@ html, body {
 
 /* ---- Stone texture + vignette ---- */
 body {
-  display: flex; justify-content: center; align-items: flex-start;
-  padding: 12px; position: relative;
+  display: flex; justify-content: center; align-items: stretch;
+  padding: 0; position: relative;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 body::before {
   content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
@@ -62,14 +66,9 @@ body::after {
 .app-shell {
   position: relative; z-index: 2;
   background: linear-gradient(180deg, var(--surface2) 0%, var(--surface) 100%);
-  border-radius: 16px; padding: 22px 16px;
-  max-width: 390px; width: 100%;
-  box-shadow:
-    0 4px 24px rgba(0,0,0,0.6),
-    inset 0 1px 0 rgba(255,255,255,0.03);
-  min-height: 560px;
+  padding: 16px 16px;
+  width: 100%; min-height: 100dvh;
   display: flex; flex-direction: column;
-  border: 1px solid rgba(255,255,255,0.05);
 }
 
 /* ---- Header — 深色卡片 + 金色文字 ---- */
@@ -95,6 +94,31 @@ body::after {
   border-color: var(--gold); color: var(--gold);
   box-shadow: 0 0 8px rgba(255,208,96,0.15);
 }
+
+/* ---- Bottom Tab Bar ---- */
+.tab-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+  display: flex; justify-content: space-around; align-items: center;
+  padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+  background: rgba(26, 18, 8, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid rgba(255,208,96,0.08);
+  transition: transform 250ms ease;
+}
+.tab-bar.hidden { transform: translateY(100%); }
+.tab-item {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  font-size: 10px; color: var(--muted); cursor: pointer; transition: all 200ms;
+  padding: 4px 18px; border-radius: 14px; font-family: var(--font);
+  -webkit-tap-highlight-color: transparent;
+}
+.tab-item .tab-icon { font-size: 22px; line-height: 1; }
+.tab-item.active { color: var(--gold); }
+.tab-item:active { background: rgba(255,208,96,0.06); }
+
+/* Page bottom padding when tab bar is visible */
+.page.has-tab-bar { padding-bottom: 80px; }
 
 /* ---- Page visibility ---- */
 .page { display: none; flex: 1; flex-direction: column; }
@@ -689,11 +713,6 @@ body::after {
 <body>
 
 <div class="app-shell" id="appShell">
-  <!-- Shared Header -->
-  <div class="app-header">
-    <span class="logo">🔮 祖玛训练</span>
-    <span id="headerRight"></span>
-  </div>
 
   <!-- ================================================================ -->
   <!-- PAGE 0: HOME                                                     -->
@@ -739,6 +758,7 @@ body::after {
       <div class="game-stat"><div class="gs-val" id="gStatCombo" style="color:var(--yellow)">0</div><div class="gs-label">本次连锁</div></div>
       <div class="game-stat"><div class="gs-val" id="gStatRemain">0</div><div class="gs-label">剩余球</div></div>
       <div class="game-stat"><div class="gs-val" id="gStatPar" style="color:var(--accent)">-</div><div class="gs-label">目标Par</div></div>
+      <button class="btn btn-outline btn-sm" id="btnUndo" onclick="undoGameMove()" disabled style="opacity:0.35;">↩ 撤销</button>
       <button class="btn btn-outline btn-sm" onclick="router.navigate('#levels')">✕ 退出</button>
     </div>
 
@@ -779,6 +799,19 @@ body::after {
   <div class="page" id="page-graduation">
     <div class="grad-content" id="gradContent"></div>
   </div>
+
+  <!-- Bottom Tab Bar -->
+  <nav class="tab-bar" id="tabBar">
+    <div class="tab-item active" data-tab="home" onclick="router.navigate('#home')">
+      <span class="tab-icon">🔮</span>首页
+    </div>
+    <div class="tab-item" data-tab="guide" onclick="router.navigate('#guide')">
+      <span class="tab-icon">📖</span>教学
+    </div>
+    <div class="tab-item" data-tab="levels" onclick="router.navigate('#levels')">
+      <span class="tab-icon">🎯</span>关卡
+    </div>
+  </nav>
 </div>
 
 <!-- Level data -->
@@ -867,11 +900,35 @@ function isAllCompleted() {
 // ======================================================================
 // ROUTER
 // ======================================================================
+function updateTabBar(activeTab) {
+  const bar = document.getElementById('tabBar');
+  if (!bar) return;
+
+  // Pages where tab bar is visible
+  const showPages = ['home', 'guide', 'levels'];
+  const show = showPages.includes(activeTab);
+
+  if (show) {
+    bar.classList.remove('hidden');
+    // Update active state
+    bar.querySelectorAll('.tab-item').forEach(item => {
+      item.classList.toggle('active', item.dataset.tab === activeTab);
+    });
+  } else {
+    bar.classList.add('hidden');
+  }
+
+  // Add/remove bottom padding on active page
+  document.querySelectorAll('.page').forEach(p => {
+    p.classList.toggle('has-tab-bar', show && p.classList.contains('active'));
+  });
+}
+
 const router = {
   _current: '',
 
   navigate(hash) {
-    const pageName = (hash || '#guide').replace('#', '').split('/')[0];
+    const pageName = (hash || '#home').replace('#', '').split('/')[0];
     this._current = pageName;
 
     // Hide all pages
@@ -881,9 +938,8 @@ const router = {
     const target = document.getElementById('page-' + pageName);
     if (target) target.classList.add('active');
 
-    // Header right slot
-    const hr = document.getElementById('headerRight');
-    hr.innerHTML = '';
+    // Update tab bar visibility
+    updateTabBar(pageName);
 
     // Dispatch to page init
     switch (pageName) {
@@ -907,7 +963,6 @@ window.addEventListener('hashchange', () => {
 // PAGE 0: HOME
 // ======================================================================
 function initHome() {
-  document.getElementById('headerRight').innerHTML = '';
 }
 
 document.getElementById('btnStart').addEventListener('click', () => {
@@ -1437,8 +1492,6 @@ function renderTutorialOverview() {
   guideCurrentTut = null;
   sessionStorage.removeItem('guideMode');
   sessionStorage.removeItem('guideTutId');
-  document.getElementById('headerRight').innerHTML =
-    '<button class="nav-btn" onclick="skipAllTutorials()">跳过全部</button>';
 
   const container = document.getElementById('guideContent');
   const allDone = TUTORIAL_SCRIPTS.every(t => isTutCompleted(t.id));
@@ -1496,7 +1549,6 @@ function startTutorialPlayback(tutId) {
   guideCurrentTut = tutId;
   sessionStorage.setItem('guideMode', 'demo');
   sessionStorage.setItem('guideTutId', tutId);
-  document.getElementById('headerRight').innerHTML = '';
 
   const container = document.getElementById('guideContent');
   container.innerHTML = `
@@ -1605,7 +1657,6 @@ function startGuidedMode(tutId) {
   guideCurrentTut = tutId;
   sessionStorage.setItem('guideMode', 'guided');
   sessionStorage.setItem('guideTutId', tutId);
-  document.getElementById('headerRight').innerHTML = '';
 
   // Init guided state
   guidedState = {
@@ -1617,6 +1668,7 @@ function startGuidedMode(tutId) {
     nextId: script.initialChain.length,
     animating: false,
     done: false,
+    undoStack: [],
   };
 
   const par = script.optimalSolution ? script.optimalSolution.length : '?';
@@ -1636,6 +1688,7 @@ function startGuidedMode(tutId) {
         <div class="gt-stat"><div class="gt-val" id="gtPar">${par}</div><div class="gt-label">目标Par</div></div>
         <div class="gt-stat"><div class="gt-val" id="gtRemain">${script.initialChain.length}</div><div class="gt-label">剩余球</div></div>
         <div class="gt-btns">
+          <button class="btn btn-outline btn-sm" id="btnGuidedUndo" onclick="undoGuidedMove()" disabled style="opacity:0.35;">↩ 撤销</button>
           <button class="btn btn-accent btn-sm" id="btnShowOptimal">💡 最优解</button>
           <button class="btn btn-outline btn-sm" id="btnGuidedReset">🔄 重置</button>
         </div>
@@ -1675,6 +1728,9 @@ function startGuidedMode(tutId) {
     const idx = parseInt(slot.dataset.index);
     if (isNaN(idx) || idx < 0 || idx > guidedState.chain.length) return;
 
+    // Save undo snapshot before mutation
+    guidedState.undoStack.push(saveGuidedSnapshot(guidedState));
+
     // Insert ball
     const color = guidedState.queue[guidedState.queueIdx];
     guidedState.steps.push({ slot: idx });
@@ -1686,6 +1742,7 @@ function startGuidedMode(tutId) {
 
     // Check match
     guidedState.animating = true;
+    updateGuidedUndoButton();
     guidedScheduleMatchCheck(idx);
   });
 
@@ -1788,6 +1845,8 @@ function renderGuidedChain() {
     }
     previewWrapper.style.display = hasPreview ? '' : 'none';
   }
+
+  updateGuidedUndoButton();
 }
 
 function updateGuidedStats() {
@@ -1947,6 +2006,39 @@ function showOptimalModal(script) {
   document.getElementById('optModalClose').addEventListener('click', () => overlay.remove());
 }
 
+function undoGuidedMove() {
+  const gs = guidedState;
+  if (!gs || gs.animating || gs.undoStack.length === 0) return;
+
+  const snap = gs.undoStack.pop();
+  gs.chain = snap.chain;
+  gs.queueIdx = snap.queueIdx;
+  gs.steps = snap.steps;
+  gs.nextId = snap.nextId;
+  gs.done = snap.done;
+
+  // Hide any previous result display
+  const resultEl = document.getElementById('guidedResult');
+  if (resultEl) resultEl.style.display = 'none';
+
+  renderGuidedChain();
+  updateGuidedStats();
+  updateGuidedUndoButton();
+}
+
+function updateGuidedUndoButton() {
+  const gs = guidedState;
+  const btn = document.getElementById('btnGuidedUndo');
+  if (!btn) return;
+  if (!gs || gs.animating || gs.undoStack.length === 0) {
+    btn.disabled = true;
+    btn.style.opacity = '0.35';
+  } else {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+  }
+}
+
 // ---- Shared helpers ----
 function skipCurrentTutorial() {
   if (tutPlayer && tutPlayer.running) {
@@ -1970,9 +2062,6 @@ function backToOverview() {
 // PAGE 2: LEVELS
 // ======================================================================
 function initLevels() {
-  document.getElementById('headerRight').innerHTML =
-    '<button class="nav-btn" onclick="router.navigate(\'#home\')">首页</button>';
-
   const grid = document.getElementById('levelsGrid');
   const progress = loadProgress();
   const allDone = isAllCompleted();
@@ -2004,17 +2093,6 @@ function initLevels() {
     </div>`;
   }
 
-  // Placeholder locked cards (for visual) up to 24 or at least fill the row
-  const placeholders = Math.max(0, 24 - ZUMA_LEVELS.length);
-  for (let i = 0; i < placeholders; i++) {
-    const n = ZUMA_LEVELS.length + i + 1;
-    html += `<div class="level-card locked fade-in delay-${(ZUMA_LEVELS.length + i) % 4}">
-      <div class="lc-num">#${n}</div>
-      <div class="lc-name">敬请期待</div>
-      <div class="lc-lock">🔒</div>
-    </div>`;
-  }
-
   grid.innerHTML = html;
 }
 
@@ -2027,9 +2105,37 @@ function renderStars(count) {
 }
 
 // ======================================================================
+// UNDO SNAPSHOT HELPERS
+// ======================================================================
+function saveSnapshot(gs) {
+  return {
+    chain: gs.chain.map(b => ({ color: b.color, id: b.id })),
+    queueIdx: gs.queueIdx,
+    steps: gs.steps,
+    comboChain: gs.comboChain,
+    totalCombos: gs.totalCombos,
+    maxChain: gs.maxChain,
+    selectedSlot: gs.selectedSlot,
+    nextId: gs.nextId,
+    allCleared: gs.allCleared,
+    levelEnded: gs.levelEnded,
+  };
+}
+
+function saveGuidedSnapshot(gs) {
+  return {
+    chain: gs.chain.map(b => ({ color: b.color, id: b.id })),
+    queueIdx: gs.queueIdx,
+    steps: gs.steps.map(s => ({ slot: s.slot })),
+    nextId: gs.nextId,
+    done: gs.done,
+  };
+}
+
+// ======================================================================
 // PAGE 3: GAME
 // ======================================================================
-let gameState = null; // { level, chain[], queue[], queueIdx, steps, comboChain, animating, selectedSlot, allCleared }
+let gameState = null; // { level, chain[], queue[], queueIdx, steps, comboChain, animating, selectedSlot, allCleared, undoStack[] }
 
 function startLevel(id) {
   sessionStorage.setItem('currentLevelId', id);
@@ -2039,6 +2145,48 @@ function startLevel(id) {
 function retryLevel() {
   // Re-init with same level
   initGame();
+}
+
+function undoGameMove() {
+  const gs = gameState;
+  if (!gs || gs.animating || gs.undoStack.length === 0) return;
+
+  const snap = gs.undoStack.pop();
+  gs.chain = snap.chain;
+  gs.queueIdx = snap.queueIdx;
+  gs.steps = snap.steps;
+  gs.comboChain = snap.comboChain;
+  gs.totalCombos = snap.totalCombos;
+  gs.maxChain = snap.maxChain;
+  gs.selectedSlot = snap.selectedSlot;
+  gs.nextId = snap.nextId;
+  gs.allCleared = snap.allCleared;
+  gs.levelEnded = snap.levelEnded;
+
+  // Restore cue bar opacity
+  document.getElementById('queueBar').style.opacity = gs.queueIdx >= gs.queue.length ? '0.6' : '1';
+
+  // If level was ended, close the end overlay
+  if (!gs.levelEnded) {
+    document.getElementById('levelEndOverlay').style.display = 'none';
+  }
+
+  renderChain();
+  renderQueue();
+  updateGameStats();
+}
+
+function updateUndoButton() {
+  const gs = gameState;
+  const btn = document.getElementById('btnUndo');
+  if (!btn) return;
+  if (!gs || gs.animating || gs.undoStack.length === 0) {
+    btn.disabled = true;
+    btn.style.opacity = '0.35';
+  } else {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+  }
 }
 
 function finishLevel() {
@@ -2061,8 +2209,6 @@ function initGame() {
   const level = getLevel(id);
   if (!level) { router.navigate('#levels'); return; }
 
-  document.getElementById('headerRight').innerHTML = '';
-
   // Reset game state
   gameState = {
     level: level,
@@ -2077,7 +2223,8 @@ function initGame() {
     animating: false,
     selectedSlot: 0,
     allCleared: false,
-    levelEnded: false
+    levelEnded: false,
+    undoStack: []
   };
 
   // Clamp selectedSlot
@@ -2193,6 +2340,7 @@ function renderChain() {
 
   updateGameStats();
   updateSlotHint();
+  updateUndoButton();
 }
 
 function renderInsertSlot(container, index) {
@@ -2235,6 +2383,9 @@ document.getElementById('chainRow').addEventListener('click', function(e) {
 
   const idx = parseInt(slot.dataset.index);
   if (isNaN(idx) || idx < 0 || idx > gs.chain.length) return;
+
+  // Save undo snapshot before mutation
+  gs.undoStack.push(saveSnapshot(gs));
 
   // Insert immediately at this slot
   const color = gs.queue[gs.queueIdx];
@@ -2284,6 +2435,7 @@ function scheduleMatchCheck(checkIdx) {
   }
 
   gs.animating = true;
+  updateUndoButton();
   gs.comboChain++;
   gs.totalCombos++;
   if (gs.comboChain > gs.maxChain) gs.maxChain = gs.comboChain;
@@ -2432,9 +2584,6 @@ function closeLevelEnd() {
 // PAGE 4: RESULT
 // ======================================================================
 function initResult() {
-  document.getElementById('headerRight').innerHTML =
-    '<button class="nav-btn" onclick="router.navigate(\'#levels\')">关卡列表 →</button>';
-
   const raw = sessionStorage.getItem('gameResult');
   if (!raw) {
     document.getElementById('resultCard').innerHTML =
@@ -2519,8 +2668,6 @@ function initGraduation() {
     router.navigate('#levels');
     return;
   }
-
-  document.getElementById('headerRight').innerHTML = '';
 
   const progress = loadProgress();
   let totalStars = 0;
